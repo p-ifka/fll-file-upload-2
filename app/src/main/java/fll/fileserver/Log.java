@@ -3,14 +3,13 @@ package fll.fileserver;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.BufferedWriter;
 import java.util.Date;
 
 public class Log
 {
     private boolean loggingEnabled;
     private String logPath;
-    private BufferedWriter logWriter;
+    private FileWriter logWriter;
 
 
     public Log(String path)
@@ -18,7 +17,7 @@ public class Log
 	logPath = path;
 	try {
 	    // if(!File.exists(path)) {
-		// File.createNewFile(path);
+	    // File.createNewFile(path);
 	    // }
 
 	    File logFile = new File(path);
@@ -28,9 +27,8 @@ public class Log
 		loggingEnabled = false;
 		return;
 	    }
-	    
-	    
-	    logWriter = new BufferedWriter(new FileWriter(logPath, true));
+
+	    logWriter = new FileWriter(logFile, true);
 	    loggingEnabled = true;
 	    info("opened log file" + path);
 	} catch(IOException e) {
@@ -54,13 +52,22 @@ public class Log
 	    try {
 		logWriter.append(logMsg);
 	    } catch(IOException e) {
-		System.out.println("[ERROR]   FAILED TO WRITE TO LOG");
+		System.out.println("[ERROR]   failed to write to log file: " + e.getMessage());
 	    }
 	}
     }
 
+    public void close()
+    {
+	try {
+	    info("closing log stream");
+	    logWriter.close();
+	} catch(IOException e) {
+	    System.out.println("failed to close log filewriter: " + e.getMessage());
+	}
+    }
 
-    public void info(String msg) { doLog(String.format("[INFO]   %s", msg)); }
-    public void warn(String msg) { doLog(String.format("[WARN]   %s", msg)); }
-    public void error(String msg) { doLog(String.format("[ERROR]   %s", msg)); }
+    public void info(String msg) { doLog(String.format("[INFO]   %s\n", msg)); }
+    public void warn(String msg) { doLog(String.format("[WARN]   %s\n", msg)); }
+    public void error(String msg) { doLog(String.format("[ERROR]   %s\n", msg)); }
 }

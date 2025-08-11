@@ -19,7 +19,7 @@ public class Main
 
     public static void main(String[] args)
     {
-	Log log = new Log(Log.defaultLogPath());
+	Log log = new Log(Log.defaultLogPath()); // TODO: close log file when server is stopped
 	log.info("nothing");
 	
 	try {
@@ -28,10 +28,12 @@ public class Main
 
 	    srv.setExecutor(null);
 	    srv.start();
+	    log.info("server started");
 	} catch (IOException e) {
 	    System.out.println("error starting server: " + e.getMessage());
 
 	}
+	
     }
 }
 
