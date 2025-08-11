@@ -1,6 +1,10 @@
 package fll.fileserver;
 
+import fll.fileserver.Log;
+
 import fll.fileserver.pages.login.Login;
+
+
 
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
@@ -15,9 +19,12 @@ public class Main
 
     public static void main(String[] args)
     {
+	Log log = new Log(Log.defaultLogPath());
+	log.info("nothing");
+	
 	try {
 	    HttpServer srv = HttpServer.create(new InetSocketAddress(8080), 0);
-	    srv.createContext("/", new Login());
+	    srv.createContext("/", new Login(log));
 
 	    srv.setExecutor(null);
 	    srv.start();

@@ -1,5 +1,6 @@
 package fll.fileserver.pages.login;
 
+import fll.fileserver.Log;
 import fll.fileserver.html.HtmlElement;
 import fll.fileserver.html.HtmlFormatter;
 
@@ -19,12 +20,22 @@ public class Login
 {
 
     private int count = 0;
+    private Log log;
 
+
+    public Login(Log logInstance)
+    {
+	log = logInstance;
+    }
+
+    
 
     @Override
     public void handle(HttpExchange exchange)
 	throws IOException
     {
+	log.info("Login: recieved request");
+	
 	count++;
 
 	String page;
