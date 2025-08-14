@@ -1,6 +1,7 @@
 package fll.fileserver;
 
 import fll.fileserver.Log;
+import fll.fileserver.Database;
 
 import fll.fileserver.pages.login.Login;
 
@@ -20,7 +21,8 @@ public class Main
     public static void main(String[] args)
     {
 	Log log = new Log(Log.defaultLogPath()); // TODO: close log file when server is stopped
-	log.info("nothing");
+	Database db = new Database("database/user.db", log);
+	
 	
 	try {
 	    HttpServer srv = HttpServer.create(new InetSocketAddress(8080), 0);
