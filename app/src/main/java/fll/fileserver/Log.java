@@ -70,4 +70,5 @@ public class Log
     public void info(String msg) { doLog(String.format("[INFO]   %s\n", msg)); }
     public void warn(String msg) { doLog(String.format("[WARN]   %s\n", msg)); }
     public void error(String msg) { doLog(String.format("[ERROR]   %s\n", msg)); }
+    public void fatal(String msg) { doLog(String.format("[FATAL]   %s\n", msg)); }
 }
