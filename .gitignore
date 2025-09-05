@@ -4,3 +4,9 @@ build
 
 # emacs backup files
 *~
+
+# logs
+*.log
+
+# database
+*.db
