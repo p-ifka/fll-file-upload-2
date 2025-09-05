@@ -17,15 +17,29 @@ import java.sql.ResultSet;
 public class Database
 {
     /* return values used by database functions */
-    public static int DB_SUCCESS = 1; // for when a function completes sucessfully
-    public static int DB_ISSUE = 0;   // for when a function fails because of intentional mechanism (ex. user input error)
-    public static int DB_ERROR = -1;  // for when an unexpected error/exception occurs
+    public static final int DB_SUCCESS = 1; // for when a function completes sucessfully
+    public static final int DB_ISSUE = 0;   // for when a function fails because of intentional mechanism (ex. user input error)
+    public static final int DB_ERROR = -1;  // for when an unexpected error/exception occurs
+
+    public static final String DB_EXPIRY_NONE = "none";
 
 
     private Log logInst;
     private Connection database;
-    
+
     private final String GROUP_LIST_TABLE = "GROUPS";
+
+    public class SqlQuery {
+	public Statement stmt;
+	public ResultSet result;
+
+	public void free()
+	throws SQLException
+	{
+	    stmt.close();
+	    result.close();
+	}
+    }
 
 
 
@@ -55,9 +69,9 @@ public class Database
 		initializeHeadTable(dbCon);
 	    }
 	    database = dbCon;
-	    createGroup("group3", -1);
+	    // createGroup("group3", -1);
 
-	    close(dbCon);
+	    // close(dbCon);
 	} catch(SQLException e) {
 	    logInstance.fatal(String.format("failed to start connection to  database file: %s: %s", dbPath, e.getMessage()));
 	    System.exit(1);
@@ -68,7 +82,7 @@ public class Database
 
 
     private void initializeHeadTable(Connection db)
-	throws SQLException
+    throws SQLException
     {
 	Statement stmt;
 
@@ -77,29 +91,56 @@ public class Database
 	stmt = db.createStatement();
 
 	stmt.execute("create table GROUPS"
-		     + "(ID text primary key, EXPIRATION integer);");
+	+ "(ID text primary key, EXPIRATION text);");
 
 	stmt.close();
 
 	return;
     }
 
-    public void close(Connection db) {
+    public void close() {
 	try {
-	    db.close();
+	    database.close();
 	} catch(SQLException e) {
 	    logInst.error(String.format("failed to close database: %s", e.getMessage()));
 	}
     }
 
-
-    public int createGroup(String groupId, int expiration)
+    public SqlQuery getGroups()
+    throws SQLException
     /**
-       attempt to initialize new group
-       @param String groupId : name of new group
-       @param int expiration : timestamp representing when the group should expire, -1 will disable expiration
+    get list and data for all groups
+    @return ResultSet for all groups in table groups
+    **/
+    {
 
-       @return DB_ERROR on error, DB_ISSUE if group already exists, DB_SUCCESS if group was successfully created
+	Statement stmt;
+	String sql;
+	ResultSet result;
+	SqlQuery retst;
+
+	stmt = database.createStatement();
+	sql = String.format("select * from %s", GROUP_LIST_TABLE);
+
+	logInst.info(String.format("executing sql: %s", sql));
+
+	result =  stmt.executeQuery(sql);
+	
+	retst = new SqlQuery();
+	retst.stmt = stmt;
+	retst.result = result;
+
+	return retst;
+    }
+
+    public int createGroup(String groupId,
+    String expiration)
+    /**
+    attempt to initialize new group
+    @param String groupId : name of new group
+    @param String expiration : date of expiration in YYYY-MM-DD format, or DB_EXPIRY_NONE to disable expiry
+
+    @return DB_ERROR on error, DB_ISSUE if group already exists, DB_SUCCESS if group was successfully created
     **/
     {
 	logInst.info(String.format("attempting to create group %s", groupId));
@@ -121,8 +162,8 @@ public class Database
 	    }
 
 	    /* create group */
-	    sql = String.format("insert into GROUPS (id, expiration) values(\"%s\", %d)", groupId, expiration);
-	    logInst.info(String.format("SQL: %s", sql));
+	    sql = String.format("insert into GROUPS (id, expiration) values(\"%s\", \"%s\")", groupId, expiration);
+	    logInst.info(String.format("executing sql: %s", sql));
 	    int rc = stmt.executeUpdate(sql);
 
 	    logInst.info(String.format("SQL: %s return %d", sql, rc));
