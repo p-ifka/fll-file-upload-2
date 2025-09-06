@@ -20,6 +20,7 @@ import java.io.FileNotFoundException;
 import java.util.HashMap;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -29,11 +30,9 @@ public class Admin
 implements HttpHandler
 {
     private final String URI_ROOT = "/admin";
-    private final String ADD_GROUP_FORM_NAME_INPUT = "new-group-name"; // 'name' attribute of <input> for the group name of a group to be added
-    private final String ADD_GROUP_FORM_EXPIRY_INPUT = "new-group-expiry"; // 'name' attribute of <input> for the expiration date of a group to be added
-
-
-
+    private final String GROUP_NAME_FORM_INPUT = "group-name"; // 'name' attribute of <input> for the group name in group modification operations
+    private final String GROUP_EXPIRY_FORM_INPUT = "new-group-expiry"; // 'name' attribute of <input> for the expiration date of a group in group modification operations
+    private final String QUANTITY_FORM_INPUT = "quantity";
 
 
     private Log logInst;
@@ -66,7 +65,7 @@ implements HttpHandler
 
     private void handleAddGroup(HttpExchange exchange)
     /**
-    handle POST requests to /admin/add-group
+    handle POST request to /admin/add-group
 
     @param exchange : HttpExchange to read parameters from and return result to
     **/
@@ -83,14 +82,15 @@ implements HttpHandler
 	    InputStream reqBody = exchange.getRequestBody();
 
 	    // String t = HttpUtil.postNextParameter(reqBody);
-	    if(HttpUtil.postNextParameter(reqBody).equals(ADD_GROUP_FORM_NAME_INPUT)) {
-		logInst.info((String.format("%s parameter found", ADD_GROUP_FORM_NAME_INPUT)));
+	    if(HttpUtil.postNextParameter(reqBody).equals(GROUP_NAME_FORM_INPUT)) {
+		// logInst.info((String.format("%s parameter found", GROUP_NAME_FORM_INPUT)));
 		newGroupName = HttpUtil.postParameterValue(reqBody);
 		if(newGroupName == null) {
 		    HttpUtil.badRequest(exchange);
+		    return;
 		}
 
-		if(HttpUtil.postNextParameter(reqBody).equals(ADD_GROUP_FORM_EXPIRY_INPUT)) {
+		if(HttpUtil.postNextParameter(reqBody).equals(GROUP_EXPIRY_FORM_INPUT)) {
 		    newGroupExpiryDate = HttpUtil.postParameterValue(reqBody);
 		    logInst.info(newGroupExpiryDate);
 		    if(newGroupExpiryDate != null) {
@@ -100,7 +100,7 @@ implements HttpHandler
 		
 		int rc = Database.DB_SUCCESS;
 		if(hasExpiry) {
-		    logInst.info(String.format("new group expiry: %s", newGroupExpiryDate));
+		    // logInst.info(String.format("new group expiry: %s", newGroupExpiryDate));
 		    rc = dbInst.createGroup(newGroupName, newGroupExpiryDate);
 		} else {
 		    rc = dbInst.createGroup(newGroupName, Database.DB_EXPIRY_NONE);
@@ -108,27 +108,83 @@ implements HttpHandler
 
 		if(rc == Database.DB_SUCCESS) {
 		    HttpUtil.OK(exchange);
+		    return;
 		} else {
 		    HttpUtil.badRequest(exchange);
+		    return;
 		}
 		
 		
-		// if(HttpUtil.postNextParameter(reqBody) == ADD_GROUP_FORM_EXPIRY_INPUT) {
+		// if(HttpUtil.postNextParameter(reqBody) == GROUP_EXPIRT_FORM_INPUT) {
 		    // String newGroupExpiry = HttpUtil.postNextParameter(reqBody);
 		    // logInst.info(String.format("creating new group with expiry: %s", newGroupExpiry));
 		} else {	// no group name parameter: ignore request
 		HttpUtil.badRequest(exchange);
+		return;
 	    }
 
 	    // logInst.info(("returning OK"));
 	    // HttpUtil.OK(exchange);
 	} catch(IOException e) {
-	    logInst.error(String.format("pages.admin.Admin.handleAddGroup IOException : %s", e.getMessage()));
-	    System.exit(1);
+	    logInst.error(String.format("|pages.admin.Admin.handleAddGroup| IOException : %s", e.getMessage()));
+	    HttpUtil.internalServerErr(exchange);
+	    return;
 	}
     }
 
 
+    private void handleAddUsers(HttpExchange exchange)
+    /**
+    handle POST request to /admin/add-users/
+    
+    @param exchange : HttpExchange to read parameters from and return result to
+    **/
+    {
+	String groupName;
+	String quantityStr;
+	int quantity;
+	int sqlRc;
+	
+	
+	try {
+	    InputStream reqBody = exchange.getRequestBody();
+	    
+	    if(HttpUtil.postNextParameter(reqBody).equals(GROUP_NAME_FORM_INPUT)) {
+		groupName = HttpUtil.postParameterValue(reqBody);
+		if(groupName == null) { HttpUtil.badRequest(exchange); return; }
+		
+	    } else {
+		HttpUtil.badRequest(exchange);
+		return;
+	    }
+	    
+	    if(HttpUtil.postNextParameter(reqBody).equals(QUANTITY_FORM_INPUT)) {
+		quantityStr = HttpUtil.postParameterValue(reqBody);
+		if(quantityStr == null) { HttpUtil.badRequest(exchange); return; }
+		quantity = Integer.parseInt(quantityStr);
+	    } else {
+		HttpUtil.badRequest(exchange);
+		return;
+	    }
+
+	    sqlRc = dbInst.createUsers(groupName, quantity);
+	    if(sqlRc == Database.DB_SUCCESS) {
+		HttpUtil.OK(exchange);
+	    } else if(sqlRc == Database.DB_ISSUE) {
+		HttpUtil.badRequest(exchange);
+	    } else {
+		HttpUtil.internalServerErr(exchange);
+	    }
+	    
+	} catch(IOException e) {
+	    logInst.error(String.format("|pages.admin.Admin.handleAddUsers| IOException : %s", e.getMessage()));
+	    HttpUtil.internalServerErr(exchange);
+	    return;
+	}
+	
+    }
+
+    
 
     @Override
     public void handle(HttpExchange exchange)
@@ -140,10 +196,9 @@ implements HttpHandler
 	case "/admin/add-group":
 	    handleAddGroup(exchange);
 	    return;
-	    // break;		// sure           // well nevermind
-
-
-
+	case "/admin/add-users":
+	    handleAddUsers(exchange);
+	    return;
 	}
 
 	String groupTable = "";
@@ -154,8 +209,19 @@ implements HttpHandler
 	    ResultSet groups = getGroupsQuery.result;
 
 	    while(groups.next()) {
-		HtmlElement row = new HtmlElement("tr");
-		row.setContents(String.format("<td>%s</td><td>%s</td>", groups.getString(1), groups.getString(2)));
+		String gtGroupName = groups.getString(1);
+		HtmlElement row = new HtmlElement("div");
+		HashMap<String, String> divArgs = new HashMap<String, String>();
+
+		divArgs.put("group-name", gtGroupName);
+		divArgs.put("group-expiry", groups.getString(2));
+		divArgs.put("group-name", gtGroupName);
+		divArgs.put("group-user-quantity", String.format("%d", dbInst.getUserCount(gtGroupName)));
+		divArgs.put("group-name-form-input", QUANTITY_FORM_INPUT);
+		divArgs.put("quantity-form-input", QUANTITY_FORM_INPUT);
+
+		row.setContents(HtmlFormatter.format(HtmlFormatter.readWholePageFile("elements/admin-group-data.temp.html"), divArgs));
+		
 		groupTable = groupTable + row.toElementString();
 	    }
 
@@ -168,11 +234,11 @@ implements HttpHandler
 
 	HashMap<String, String> args = new HashMap<String,String>();
 
-	args.put("add_group_form_name_input", ADD_GROUP_FORM_NAME_INPUT);
-	args.put("add_group_form_expiry_input", ADD_GROUP_FORM_EXPIRY_INPUT);
+	args.put("group-name-form-input", GROUP_NAME_FORM_INPUT);
+	args.put("group-expiry-input", GROUP_EXPIRY_FORM_INPUT);
 	args.put("table-contents", groupTable);
 
-	String page = HtmlFormatter.format(pageFileData(), args);
+	String page = HtmlFormatter.format(HtmlFormatter.readWholePageFile("pages/admin.temp.html"), args);
 	try {
 
 	    Headers responseHeaders = exchange.getResponseHeaders();

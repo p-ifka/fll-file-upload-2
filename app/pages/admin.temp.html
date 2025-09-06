@@ -3,17 +3,17 @@
 <html>
     <head><title>page</title></head>
     <body>
+	<h2>add group</h2>
 	<form action="/admin/add-group" method="POST">
-	    <span><p>name: </p><input type="text" name="~add_group_form_name_input~"/></span>
-	    <span><p>expiration date (optional): </p><input type="date" name="~add_group_form_expiry_input~"/></span>
+	    <span><p>name: </p><input type="text" name="~group-name-form-input~"/></span>
+	    <span><p>expiration date (optional): </p><input type="date" name="~group-expiry-input~"/></span>
 	    <input type="submit" value="+"/>
 	</form>
+
 	
-	<table>
-	    <tr> <th>group ID</th>
-		<th>expiration</th> </tr>
-	    ~table-contents~
-	</table>
+	<h2>groups</h2>
+	~table-contents~
+
     </body>
 
 </html>
