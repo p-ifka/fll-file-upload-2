@@ -29,7 +29,7 @@ import java.sql.SQLException;
 public class Admin
 implements HttpHandler
 {
-    private final String URI_ROOT = "/admin";
+    // private final String URI_ROOT = "/admin";
     private final String GROUP_NAME_FORM_INPUT = "group-name"; // 'name' attribute of <input> for the group name in group modification operations
     private final String GROUP_EXPIRY_FORM_INPUT = "new-group-expiry"; // 'name' attribute of <input> for the expiration date of a group in group modification operations
     private final String QUANTITY_FORM_INPUT = "quantity";
@@ -45,22 +45,7 @@ implements HttpHandler
 	dbInst = databaseInstance;
     }
 
-    String pageFileData() {
-	String page = "";
-	try {
-	    File pageFile = new File("pages/admin.temp.html");
-	    Scanner pageFileReader = new Scanner(pageFile);
-	    while(pageFileReader.hasNextLine()) {
-		page = page + pageFileReader.nextLine();
-	    }
-	    return page;
-	} catch (FileNotFoundException e) {
-	    logInst.error(String.format("file not found: %s", e.getMessage()));
-	    System.exit(1);	// TODO: internal server error page here
-	    return "";
-	}
 
-    }
 
 
     private void handleAddGroup(HttpExchange exchange)
@@ -73,7 +58,7 @@ implements HttpHandler
 	boolean hasExpiry = false;
 	String newGroupName = new String();
 	String newGroupExpiryDate = new String();
-	
+
 
 
 	// logInst.info("rq to /admin/add-group recieved");
@@ -97,7 +82,7 @@ implements HttpHandler
 			hasExpiry = true;
 		    }
 		}
-		
+
 		int rc = Database.DB_SUCCESS;
 		if(hasExpiry) {
 		    // logInst.info(String.format("new group expiry: %s", newGroupExpiryDate));
@@ -113,8 +98,8 @@ implements HttpHandler
 		    HttpUtil.badRequest(exchange);
 		    return;
 		}
-		
-		
+
+
 		// if(HttpUtil.postNextParameter(reqBody) == GROUP_EXPIRT_FORM_INPUT) {
 		    // String newGroupExpiry = HttpUtil.postNextParameter(reqBody);
 		    // logInst.info(String.format("creating new group with expiry: %s", newGroupExpiry));
@@ -136,7 +121,7 @@ implements HttpHandler
     private void handleAddUsers(HttpExchange exchange)
     /**
     handle POST request to /admin/add-users/
-    
+
     @param exchange : HttpExchange to read parameters from and return result to
     **/
     {
@@ -144,20 +129,20 @@ implements HttpHandler
 	String quantityStr;
 	int quantity;
 	int sqlRc;
-	
-	
+
+
 	try {
 	    InputStream reqBody = exchange.getRequestBody();
-	    
+
 	    if(HttpUtil.postNextParameter(reqBody).equals(GROUP_NAME_FORM_INPUT)) {
 		groupName = HttpUtil.postParameterValue(reqBody);
 		if(groupName == null) { HttpUtil.badRequest(exchange); return; }
-		
+
 	    } else {
 		HttpUtil.badRequest(exchange);
 		return;
 	    }
-	    
+
 	    if(HttpUtil.postNextParameter(reqBody).equals(QUANTITY_FORM_INPUT)) {
 		quantityStr = HttpUtil.postParameterValue(reqBody);
 		if(quantityStr == null) { HttpUtil.badRequest(exchange); return; }
@@ -175,32 +160,117 @@ implements HttpHandler
 	    } else {
 		HttpUtil.internalServerErr(exchange);
 	    }
-	    
+
 	} catch(IOException e) {
 	    logInst.error(String.format("|pages.admin.Admin.handleAddUsers| IOException : %s", e.getMessage()));
+	    HttpUtil.internalServerErr(exchange);
+	    return;
+	}
+
+    }
+
+
+    private void showGroup(HttpExchange exchange, String groupID)
+    {
+	try {
+	    if(!dbInst.doesGroupExist(groupID)) {
+		HttpUtil.notFound(exchange);
+		return;
+	    }
+	    
+	    Database.SqlQuery userListQuery;
+	    int userTableBufferLen;
+	    StringBuffer userTable;
+	    HtmlElement userTableItem;
+	    int i = 0;
+
+	    String page;
+	    HashMap<String,String> pageArgs;
+	    Headers responseHeaders;
+	    OutputStream responseBody;
+	    
+
+	    userListQuery = dbInst.getUsersInGroup(groupID);
+
+	    userTableBufferLen = 2048;
+	    userTable = new StringBuffer(userTableBufferLen);
+	    
+	    while(userListQuery.result.next()) {
+		userTableItem = new HtmlElement("li");
+		userTableItem.setContents(userListQuery.result.getString(1));
+
+		if(i >= userTableBufferLen) {
+		    userTableBufferLen = userTableBufferLen + 2048;
+		    userTable.setLength(userTableBufferLen);
+		}
+		userTable.append(userTableItem.toElementString());
+		i++;
+	    }
+	    userListQuery.free();
+	    
+	    pageArgs = new HashMap<String,String>();
+	    pageArgs.put("group-name", groupID);
+	    pageArgs.put("user-list", userTable.toString());
+	    page = HtmlFormatter.format(HtmlFormatter.readWholePageFile("pages/admin-group.temp.html"), pageArgs);
+
+	    try {
+		responseHeaders = exchange.getResponseHeaders();
+		responseBody = exchange.getResponseBody();
+
+		responseHeaders.set("content-type", "text/html");
+		exchange.sendResponseHeaders(200, page.length());
+
+		responseBody.write(page.getBytes());
+
+		responseBody.close();
+		exchange.close();
+		
+		
+	    } catch(IOException e) {
+		logInst.error(String.format("|pages.admin.Admin.showGroup| IOException : %s", e.getMessage()));
+		HttpUtil.internalServerErr(exchange);
+		return;
+	    }
+	    
+	    
+	} catch(SQLException e) {
+	    logInst.error(String.format("|pages.admin.Admin.showGroup| SQLException : %s", e.getMessage()));
 	    HttpUtil.internalServerErr(exchange);
 	    return;
 	}
 	
     }
 
-    
-
     @Override
     public void handle(HttpExchange exchange)
     {
 	logInst.info("request to /admin/");
-	String URI = exchange.getRequestURI().getPath();
+	// URI reqURI = exchange.getRequestURI();
 
-	switch(URI) {
-	case "/admin/add-group":
-	    handleAddGroup(exchange);
-	    return;
-	case "/admin/add-users":
-	    handleAddUsers(exchange);
+	String URI = exchange.getRequestURI().getPath();
+	String[] URIComponents = URI.split("/");
+	if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
+	    logInst.info("POST request recieved");
+	    switch(URIComponents[2]) {
+	    case "add-group":
+		handleAddGroup(exchange);
+		return;
+	    case "add-users":
+		handleAddUsers(exchange);
+		return;
+	    }
+
+	}
+
+	if(URIComponents.length >= 4 && URIComponents[2].equals("group")) {
+	    logInst.info("showing group " + URIComponents[3]);
+	    showGroup(exchange, URIComponents[3]);
 	    return;
 	}
 
+
+
+	logInst.info("displaying main page");
 	String groupTable = "";
 
 
@@ -221,12 +291,12 @@ implements HttpHandler
 		divArgs.put("quantity-form-input", QUANTITY_FORM_INPUT);
 
 		row.setContents(HtmlFormatter.format(HtmlFormatter.readWholePageFile("elements/admin-group-data.temp.html"), divArgs));
-		
+
 		groupTable = groupTable + row.toElementString();
 	    }
 
 	    getGroupsQuery.free();
-	    
+
 	} catch(SQLException e) {
 	    logInst.error(String.format("sql error: %s", e.getMessage()));
 	    System.exit(1);	// TODO: internal server error page here
