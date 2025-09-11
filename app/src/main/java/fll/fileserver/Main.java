@@ -29,7 +29,7 @@ public class Main
 	
 	try {
 	    HttpServer srv = HttpServer.create(new InetSocketAddress(8080), 0);
-	    srv.createContext("/", new Login(log));
+	    srv.createContext("/login", new Login(log, db));
 	    srv.createContext("/admin", new Admin(log, db));
 	    srv.createContext("/stop" , new Stop(log, db));
 
