@@ -8,6 +8,93 @@ import com.sun.net.httpserver.HttpExchange;
 
 public class HttpUtil
 {
+    private static final char[] HEX_CHAR_MAP = { '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F' };
+
+    
+    public static String toHex(char value, boolean trimLeadingZeros)
+    /**
+    convert char to hex representation
+
+    @param char value : value to convert
+    @param boolean trimLeadingZeros : whether to trim extra zeros at beginning of output,
+    when false, output length will be determined by type size.
+
+    @return hexadecimal string
+    **/
+    {
+	int byteSize;
+	StringBuffer buf;
+	int digitVal;
+	boolean nonZero;
+
+	byteSize = Character.SIZE / 8;
+	buf = new StringBuffer(byteSize);
+	nonZero = false;
+
+	for(int i=0;i<byteSize*2;i++) {
+	    digitVal = (( (value) >> (Character.SIZE - 4 - (i * 4))) & 0xf);
+	    if(trimLeadingZeros && !nonZero && digitVal == 0) {
+		continue;
+	    }
+	    buf.append(HEX_CHAR_MAP[digitVal]);
+	}
+
+	return buf.toString();
+    }
+
+    public static int parseHex(String hexstr)
+    /**
+    parse value from hexadecimal string
+    
+    @param String hexstr : string containing only valid hexadecimal digits (case insensitive) [a-z], [A-Z], [0-9]
+
+    @return String value or -1 if hex string contains invalid characters
+    **/
+    {
+	int result = 0;
+	char ch;
+	for(int i=0;i<hexstr.length();i++)
+	{
+	    ch = hexstr.charAt(i);
+	    if(ch >= '0' && ch <= '9') {
+		result = result + (((int)ch - (int)'0') * (int)(Math.pow(16, (hexstr.length() - i - 1))));
+	    } else if(ch >= 'a' && ch <= 'f') {
+		result = result + (10 + (int)ch - (int)'a') * (int)(Math.pow(16, hexstr.length() - i - 1));
+	    } else if(ch >= 'A' && ch <= 'F') {
+		result = result + (10 + (int)ch - (int)'A') * (int)(Math.pow(16, hexstr.length() - i - 1));
+	    } else {
+		return -1;
+	    }
+	}
+	return result;
+    }
+
+    public static String escapeOutput(String str)
+    /**
+    escape characters for sending through http
+
+    @param String str : string to escape
+
+    @return escaped string
+
+    TODO: only escape characters that have to be, instead of all of them
+    **/
+    {
+	StringBuffer buf;
+	int strlen;
+	char ch;
+
+	strlen = str.length();
+	buf = new StringBuffer(strlen * 3);
+
+	for(int i=0;i<strlen;i++) {
+	    ch = str.charAt(i);
+	    buf.append("%");
+	    buf.append(toHex(ch, true));
+	}
+	return buf.toString();
+    }
+
     public static String postNextParameter(InputStream body)
     throws IOException
     {
@@ -56,6 +143,9 @@ public class HttpUtil
 	int bufferSize = 255;
 	StringBuffer parameterValue = new StringBuffer(bufferSize);
 	int nextb;
+	int hexA, hexB;
+	String hexstr;
+
 	for(int i=0;true;i++) {
 	    nextb = body.read();
 	    if(nextb == -1) {
@@ -67,6 +157,16 @@ public class HttpUtil
 	    } else if((char)nextb == '&') {
 		return parameterValue.toString();
 	    } else {
+		if((char)nextb == '%') {
+		    /* parse escaped characters */
+		    hexA = body.read();
+		    if(hexA == -1) { return null; }
+		    hexB = body.read();
+		    if(hexB == -1) { return null; }
+		    hexstr = String.format("%c%c", (char)hexA, (char)hexB);
+		    nextb = parseHex(hexstr);
+		    if(nextb == -1) { return null; }
+		}
 		if(i >= bufferSize) {
 		    return null;
 		    // bufferSize = bufferSize + 255;
