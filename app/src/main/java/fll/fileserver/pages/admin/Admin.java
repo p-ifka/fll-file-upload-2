@@ -287,7 +287,7 @@ implements HttpHandler
 		divArgs.put("group-expiry", groups.getString(2));
 		divArgs.put("group-name", gtGroupName);
 		divArgs.put("group-user-quantity", String.format("%d", dbInst.getUserCount(gtGroupName)));
-		divArgs.put("group-name-form-input", QUANTITY_FORM_INPUT);
+		divArgs.put("group-name-form-input", GROUP_NAME_FORM_INPUT);
 		divArgs.put("quantity-form-input", QUANTITY_FORM_INPUT);
 
 		row.setContents(HtmlFormatter.format(HtmlFormatter.readWholePageFile("elements/admin-group-data.temp.html"), divArgs));
