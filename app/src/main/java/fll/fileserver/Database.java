@@ -31,13 +31,13 @@ public class Database
     private final String USER_LIST_TABLE = "USERS";
 
     public class SqlQuery {
-	public Statement stmt;
+	public Statement statement;
 	public ResultSet result;
 
 	public void free()
 	throws SQLException
 	{
-	    stmt.close();
+	    statement.close();
 	    result.close();
 	}
     }
@@ -148,18 +148,75 @@ public class Database
 	return pass.toString();
     }
 
+    private String escapeInput(String input)
+    {
+	return input.replace("\"", "\"\"").replace("\'", "\'\'");
+    }
+
+    private boolean isValidGroupName(String groupID)
+    {
+	for(int i=0;i<groupID.length();i++) {
+	    char ch = groupID.charAt(i);
+	    if(!( (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-'))) {
+		return false;
+	    }
+	}
+
+	return true;
+
+    }
+
+    public boolean doesGroupExist(String groupID)
+    throws SQLException
+    {
+	Statement stmt;
+	ResultSet result;
+
+	stmt = database.createStatement();
+	result = stmt.executeQuery(String.format("select * from %s where GROUPID = \"%s\"", USER_LIST_TABLE, escapeInput(groupID)));
+
+	if(result.next()) {
+	    return true;
+	} else {
+	    return false;
+	}
+
+    }
+
+    public int authenticateAny(String pass)
+    {
+	Statement stmt;
+	ResultSet result;
+	try {
+	    stmt = database.createStatement();
+	    result = stmt.executeQuery(String.format("select * from %s where pass = \"%s\"", USER_LIST_TABLE, escapeInput(pass)));
+	    
+	    if(result.next()) {
+		return DB_SUCCESS;
+	    } else {
+		return DB_ISSUE;
+	    }
+	} catch(SQLException e) {
+	    logInst.error(String.format("|Database.authenticateAny| SQLException : %s", e.getMessage()));
+	    return DB_ERROR;
+	}
+    }
+
+    
+    
     public SqlQuery getGroups()
     throws SQLException
     /**
     get list and data for all groups
-    @return ResultSet for all groups in table groups
+
+    @return SqlQuery : result of query
     **/
     {
 
 	Statement stmt;
 	String sql;
 	ResultSet result;
-	SqlQuery retst;
+	SqlQuery ret;
 
 	stmt = database.createStatement();
 	sql = String.format("select * from %s", GROUP_LIST_TABLE);
@@ -168,11 +225,33 @@ public class Database
 
 	result =  stmt.executeQuery(sql);
 
-	retst = new SqlQuery();
-	retst.stmt = stmt;
-	retst.result = result;
+	ret = new SqlQuery();
+	ret.statement = stmt;
+	ret.result = result;
 
-	return retst;
+	return ret;
+    }
+
+    public SqlQuery getUsersInGroup(String groupID)
+    throws SQLException
+    /**
+    get list of users that are in group
+
+    @return SqlQuery : result of query
+    **/
+    {
+	Statement stmt;
+	ResultSet result;
+	SqlQuery ret;
+
+	stmt = database.createStatement();
+	result = stmt.executeQuery(String.format("select * from %s where GROUPID = \"%s\"", USER_LIST_TABLE, escapeInput(groupID)));
+
+	ret = new SqlQuery();
+	ret.statement = stmt;
+	ret.result = result;
+
+	return ret;
     }
 
     public int getUserCount(String group)
@@ -189,7 +268,7 @@ public class Database
 	int count;
 	try {
 	    stmt = database.createStatement();
-	    result =  stmt.executeQuery(String.format("select count(GROUPID) from %s where GROUPID = \"%s\"", USER_LIST_TABLE, group));
+	    result =  stmt.executeQuery(String.format("select count(GROUPID) from %s where GROUPID = \"%s\"", USER_LIST_TABLE, escapeInput(group)));
 
 	    if(result.next()) {
 		count = result.getInt(1);
@@ -201,15 +280,15 @@ public class Database
 		result.close();
 		return -1;
 	    }
-	    
+
 	} catch(SQLException e) {
 	    logInst.error(String.format("|Database.getUserCount| SQLException : %s", e.getMessage()));
 	    return DB_ERROR;
 	}
-	
+
     }
-    
-    public int createGroup(String groupId,
+
+    public int createGroup(String groupID,
     String expiration)
     /**
     attempt to initialize new group
@@ -219,7 +298,11 @@ public class Database
     @return DB_ERROR on error, DB_ISSUE if group already exists, DB_SUCCESS if group was successfully created
     **/
     {
-	logInst.info(String.format("attempting to create group %s", groupId));
+	if(!isValidGroupName(groupID)) {
+	    return DB_ISSUE;
+	}
+	
+	logInst.info(String.format("attempting to create group %s", groupID));
 
 	Statement stmt;
 	String sql;
@@ -228,17 +311,17 @@ public class Database
 	    stmt = database.createStatement();
 
 	    /* check if group is already in table */
-	    sql = String.format("select ID from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupId);
+	    sql = String.format("select ID from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupID);
 	    logInst.info(String.format("SQL: %s", sql));
 	    ResultSet rs = stmt.executeQuery(sql);
 
 	    if(rs.next()) {
-		logInst.warn(String.format("group %s already exists", groupId));
+		logInst.warn(String.format("group %s already exists", groupID));
 		return DB_ISSUE;
 	    }
 
 	    /* create group */
-	    sql = String.format("insert into %s (id, expiration) values(\"%s\", \"%s\")", GROUP_LIST_TABLE, groupId, expiration);
+	    sql = String.format("insert into %s (id, expiration) values(\"%s\", \"%s\")", GROUP_LIST_TABLE, groupID, expiration);
 	    logInst.info(String.format("executing sql: %s", sql));
 	    int rc = stmt.executeUpdate(sql);
 
@@ -256,19 +339,19 @@ public class Database
 
     }
 
-    public int createUsers(String group, int quantity)
+    public int createUsers(String groupID, int quantity)
     {
-	logInst.info(String.format("creating %d users in group %s", quantity, group));
-	
+	logInst.info(String.format("creating %d users in group %s", quantity, groupID));
+
 	Statement stmt;
 	String pass;
 	ResultSet rs;
 	try {
 	    /* make sure group exists */
 	    stmt = database.createStatement();
-	    rs = stmt.executeQuery( String.format("select * from %s where ID = \"%s\"", GROUP_LIST_TABLE, group));
+	    rs = stmt.executeQuery( String.format("select * from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupID));
 	    if(!rs.next()) {
-		logInst.warn(String.format("request to create user(s) failed: group %s does not exist" , group));
+		logInst.warn(String.format("request to create user(s) failed: group %s does not exist" , groupID));
 		return DB_ISSUE;
 	    }
 
@@ -283,7 +366,7 @@ public class Database
 		}
 
 		stmt.execute(String.format("insert into %s (PASS, GROUPID)"
-		+ "values (\"%s\", \"%s\")", USER_LIST_TABLE, pass, group));
+		+ "values (\"%s\", \"%s\")", USER_LIST_TABLE, pass, groupID));
 	    }
 
 	    return DB_SUCCESS;
