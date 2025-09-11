@@ -5,7 +5,7 @@
     <body>
 	<h2>add group</h2>
 	<form action="/admin/add-group" method="POST">
-	    <span><p>name: </p><input type="text" name="~group-name-form-input~"/></span>
+	    <span><p>name: </p><input type="text" name="~group-name-form-input~" pattern="[a-z]|[A-Z]|\-|\_{1,}" /></span>
 	    <span><p>expiration date (optional): </p><input type="date" name="~group-expiry-input~"/></span>
 	    <input type="submit" value="+"/>
 	</form>
