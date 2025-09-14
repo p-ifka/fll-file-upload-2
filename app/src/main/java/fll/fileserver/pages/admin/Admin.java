@@ -2,6 +2,8 @@ package fll.fileserver.pages.admin;
 
 import fll.fileserver.Database;
 import fll.fileserver.Log;
+import fll.fileserver.FileManager;
+
 import fll.fileserver.html.HtmlFormatter;
 import fll.fileserver.html.HtmlElement;
 import fll.fileserver.HttpUtil;
@@ -37,12 +39,14 @@ implements HttpHandler
 
     private Log logInst;
     private Database dbInst;
+    private FileManager fileMgr;
 
 
-    public Admin(Log logInstance, Database databaseInstance)
+    public Admin(Log logInstance, Database databaseInstance, fileMgr fileManager)
     {
 	logInst = logInstance;
 	dbInst = databaseInstance;
+	fileMgr = fileManager;
     }
 
 
@@ -91,12 +95,14 @@ implements HttpHandler
 		    rc = dbInst.createGroup(newGroupName, Database.DB_EXPIRY_NONE);
 		}
 
-		if(rc == Database.DB_SUCCESS) {
-		    HttpUtil.OK(exchange);
-		    return;
-		} else {
+		if(rc != Database.DB_SUCCESS) {
 		    HttpUtil.badRequest(exchange);
-		    return;
+		}
+		
+		rc = fileMgr.createGroupDir(newGroupName);
+
+		if(rc != FileManager.FS_SUCCESS) {
+		    
 		}
 
 
