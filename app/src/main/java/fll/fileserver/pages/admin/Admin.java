@@ -42,7 +42,7 @@ implements HttpHandler
     private FileManager fileMgr;
 
 
-    public Admin(Log logInstance, Database databaseInstance, fileMgr fileManager)
+    public Admin(Log logInstance, Database databaseInstance, FileManager fileManager)
     {
 	logInst = logInstance;
 	dbInst = databaseInstance;
@@ -99,13 +99,6 @@ implements HttpHandler
 		    HttpUtil.badRequest(exchange);
 		}
 		
-		rc = fileMgr.createGroupDir(newGroupName);
-
-		if(rc != FileManager.FS_SUCCESS) {
-		    
-		}
-
-
 		// if(HttpUtil.postNextParameter(reqBody) == GROUP_EXPIRT_FORM_INPUT) {
 		    // String newGroupExpiry = HttpUtil.postNextParameter(reqBody);
 		    // logInst.info(String.format("creating new group with expiry: %s", newGroupExpiry));

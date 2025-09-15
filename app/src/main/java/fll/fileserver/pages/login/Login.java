@@ -39,15 +39,10 @@ implements HttpHandler
     String authPass)
     throws IOException
     {
-	String toBase64;
 	Headers responseHeaders;
 
-	toBase64 = Base64.getEncoder().encodeToString(authPass.getBytes());
-	log.info(toBase64);
-	toBase64 = HttpUtil.escapeOutput(toBase64);
-	log.info(toBase64);
 	responseHeaders = exchange.getResponseHeaders();
-	responseHeaders.set("set-cookie", String.format("auth=%s", toBase64));
+	responseHeaders.set("set-cookie", String.format("auth=%s", HttpUtil.escapeOutput(authPass)));
     }
 
 
@@ -143,8 +138,8 @@ implements HttpHandler
     {
 	String URI = exchange.getRequestURI().getPath();
 	String[] URIComponents = URI.split("/");
-	if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
-	    if(URIComponents[2].equals("login-submit")) {
+	if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 2) {
+	    if(URIComponents[1].equals("login-submit")) {
 		handlePasswordSubmit(exchange);
 		return;
 	    }

@@ -1,6 +1,7 @@
 package fll.fileserver;
 
 import fll.fileserver.Log;
+import fll.fileserver.FileManager;
 
 import java.util.Random;
 
@@ -24,7 +25,8 @@ public class Database
     public static final String DB_EXPIRY_NONE = "none";
 
 
-    private Log logInst;
+    private Log log;
+    private FileManager fileMgr;
     private Connection database;
 
     private final String GROUP_LIST_TABLE = "GROUPS";
@@ -45,21 +47,22 @@ public class Database
 
 
 
-    public Database(String dbPath, Log logInstance)
+    public Database(String dbPath, Log log, FileManager fileMgr)
     {
 	File dbFile;
 	//	Connection dbCon;
 	boolean needsInitialization = false;
 
-	logInst = logInstance;
+	this.log = log;
+	this.fileMgr = fileMgr;
 
 	dbFile = new File(dbPath);
 	if(!dbFile.exists()) {
-	    logInstance.warn("database file does not exist, initializing new table");
+	    log.warn("database file does not exist, initializing new table");
 	    try {
 		dbFile.createNewFile();
 	    } catch(IOException e) {
-		logInstance.error(String.format("failed to create file: %s: %s", dbPath, e.getMessage()));
+		log.error(String.format("failed to create file: %s: %s", dbPath, e.getMessage()));
 	    }
 	    needsInitialization = true;
 	}
@@ -73,7 +76,7 @@ public class Database
 	    database = dbCon;
 
 	} catch(SQLException e) {
-	    logInstance.fatal(String.format("failed to start connection to  database file: %s: %s", dbPath, e.getMessage()));
+	    log.fatal(String.format("failed to start connection to  database file: %s: %s", dbPath, e.getMessage()));
 	    System.exit(1);
 	}
 
@@ -86,7 +89,7 @@ public class Database
     {
 	Statement stmt;
 
-	logInst.info(String.format("initializing table:  %s", GROUP_LIST_TABLE));
+	log.info(String.format("initializing table:  %s", GROUP_LIST_TABLE));
 
 	stmt = db.createStatement();
 
@@ -103,7 +106,7 @@ public class Database
     {
 	Statement stmt;
 
-	logInst.info(String.format("initializing table:  %s", USER_LIST_TABLE));
+	log.info(String.format("initializing table:  %s", USER_LIST_TABLE));
 
 	stmt = db.createStatement();
 	stmt.execute(String.format("create table %s"
@@ -118,7 +121,7 @@ public class Database
 	try {
 	    database.close();
 	} catch(SQLException e) {
-	    logInst.error(String.format("failed to close database: %s", e.getMessage()));
+	    log.error(String.format("failed to close database: %s", e.getMessage()));
 	}
     }
 
@@ -197,7 +200,7 @@ public class Database
 		return DB_ISSUE;
 	    }
 	} catch(SQLException e) {
-	    logInst.error(String.format("|Database.authenticateAny| SQLException : %s", e.getMessage()));
+	    log.error(String.format("|Database.authenticateAny| SQLException : %s", e.getMessage()));
 	    return DB_ERROR;
 	}
     }
@@ -221,7 +224,7 @@ public class Database
 	stmt = database.createStatement();
 	sql = String.format("select * from %s", GROUP_LIST_TABLE);
 
-	logInst.info(String.format("executing sql: %s", sql));
+	log.info(String.format("executing sql: %s", sql));
 
 	result =  stmt.executeQuery(sql);
 
@@ -282,7 +285,7 @@ public class Database
 	    }
 
 	} catch(SQLException e) {
-	    logInst.error(String.format("|Database.getUserCount| SQLException : %s", e.getMessage()));
+	    log.error(String.format("|Database.getUserCount| SQLException : %s", e.getMessage()));
 	    return DB_ERROR;
 	}
 
@@ -302,7 +305,7 @@ public class Database
 	    return DB_ISSUE;
 	}
 	
-	logInst.info(String.format("attempting to create group %s", groupID));
+	log.info(String.format("attempting to create group %s", groupID));
 
 	Statement stmt;
 	String sql;
@@ -312,20 +315,20 @@ public class Database
 
 	    /* check if group is already in table */
 	    sql = String.format("select ID from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupID);
-	    logInst.info(String.format("SQL: %s", sql));
+	    log.info(String.format("SQL: %s", sql));
 	    ResultSet rs = stmt.executeQuery(sql);
 
 	    if(rs.next()) {
-		logInst.warn(String.format("group %s already exists", groupID));
+		log.warn(String.format("group %s already exists", groupID));
 		return DB_ISSUE;
 	    }
 
 	    /* create group */
 	    sql = String.format("insert into %s (id, expiration) values(\"%s\", \"%s\")", GROUP_LIST_TABLE, groupID, expiration);
-	    logInst.info(String.format("executing sql: %s", sql));
+	    log.info(String.format("executing sql: %s", sql));
 	    int rc = stmt.executeUpdate(sql);
 
-	    logInst.info(String.format("SQL: %s return %d", sql, rc));
+	    log.info(String.format("SQL: %s return %d", sql, rc));
 
 	    rs.close();
 	    stmt.close();
@@ -333,7 +336,7 @@ public class Database
 	    return DB_SUCCESS;
 
 	} catch(SQLException e) {
-	    logInst.error(String.format("SQLException: %s", e.getMessage()));
+	    log.error(String.format("SQLException: %s", e.getMessage()));
 	    return DB_ERROR;
 	}
 
@@ -341,17 +344,18 @@ public class Database
 
     public int createUsers(String groupID, int quantity)
     {
-	logInst.info(String.format("creating %d users in group %s", quantity, groupID));
+	log.info(String.format("creating %d users in group %s", quantity, groupID));
 
 	Statement stmt;
 	String pass;
 	ResultSet rs;
+	int fileRC;
 	try {
 	    /* make sure group exists */
 	    stmt = database.createStatement();
 	    rs = stmt.executeQuery( String.format("select * from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupID));
 	    if(!rs.next()) {
-		logInst.warn(String.format("request to create user(s) failed: group %s does not exist" , groupID));
+		log.warn(String.format("request to create user(s) failed: group %s does not exist" , groupID));
 		return DB_ISSUE;
 	    }
 
@@ -367,12 +371,18 @@ public class Database
 
 		stmt.execute(String.format("insert into %s (PASS, GROUPID)"
 		+ "values (\"%s\", \"%s\")", USER_LIST_TABLE, pass, groupID));
+
+		fileRC = fileMgr.createUserDir(pass);
+		if(fileRC == FileManager.FS_ERROR) {
+		    return DB_ERROR;
+		}
+		
 	    }
 
 	    return DB_SUCCESS;
 
 	} catch(SQLException e) {
-	    logInst.error("|Database.createUsers| SQLException: %s" + e.getMessage());
+	    log.error("|Database.createUsers| SQLException: %s" + e.getMessage());
 	    return DB_ERROR;
 	}
 
@@ -381,3 +391,4 @@ public class Database
     }
 
 }
+ 

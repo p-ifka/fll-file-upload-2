@@ -3,9 +3,10 @@ package fll.fileserver;
 import fll.fileserver.Log;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 
-
+import java.lang.SecurityException;
 
 
 public class FileManager
@@ -14,7 +15,19 @@ public class FileManager
     public static final int FS_ISSUE = 1;
     public static final int FS_ERROR = -1;
 
-    
+    private class FilterNonHidden
+    implements FilenameFilter
+    {
+	@Override
+	public boolean accept(File dir, String name)
+	{
+	    if(name.charAt(0) != '.') {
+		return true;
+	    } else {
+		return false;
+	    }
+	}
+    }
     
     private Log log;
     private String filesRoot;
@@ -25,25 +38,32 @@ public class FileManager
 	filesRoot = rootDir;
     }
     
-    public int createGroupDir(String groupID)
+    public int createUserDir(String userID)
     {
 	File gDir;
 
-	gdir = new File(String.format("%s/%s/", filesRoot, groupID));
+	gDir = new File(String.format("%s/%s/", filesRoot, userID));
 	
 	if(gDir.exists()) {
-	    gDir.close();
 	    return FS_SUCCESS;
 	} else {
 	    try {
 		gDir.mkdir();
-		gDir.close();
 		return FS_SUCCESS;
-	    } catch(IOException e) {
-		gDir.close();
-		log.error(String.format("|Files.createGroupDir| IOEXception : %s", e.getMessage()));
+	    } catch(SecurityException e) {
+		log.error(String.format("|Files.createUserDir| SecurityException : %s", e.getMessage()));
 		return FS_ERROR;
 	    }
+	}
+    }
+
+    public File[] listFiles(String userID, String relativePath)
+    {
+	try {
+	    return new File(String.format("%s/%s/%s", filesRoot, userID, relativePath)).listFiles(new FilterNonHidden());
+	} catch(SecurityException e) {
+	    log.error(String.format("|FileManager.listFiles| SecurityException : %s", e.getMessage()));
+	    return null;
 	}
     }
     

@@ -2,9 +2,11 @@ package fll.fileserver;
 
 import fll.fileserver.Log;
 import fll.fileserver.Database;
+import fll.fileserver.FileManager;
 
 import fll.fileserver.pages.login.Login;
 import fll.fileserver.pages.admin.Admin;
+import fll.fileserver.pages.files.Files;
 
 import fll.fileserver.testing.Stop;
 
@@ -23,16 +25,20 @@ public class Main
 
     public static void main(String[] args)
     {
-	Log log = new Log(Log.defaultLogPath()); // TODO: close log file when server is stopped
-	Database db = new Database("database/user.db", log);
+	Log log = new Log(Log.defaultLogPath());
+	FileManager fileMgr = new FileManager(log, "files");
+	Database db = new Database("database/user.db", log, fileMgr);
+	
 	
 	
 	try {
 	    HttpServer srv = HttpServer.create(new InetSocketAddress(8080), 0);
-	    srv.createContext("/login", new Login(log, db));
-	    srv.createContext("/admin", new Admin(log, db));
+	    srv.createContext("/admin", new Admin(log, db, fileMgr));
+	    srv.createContext("/files" , new Files(log, fileMgr));
 	    srv.createContext("/stop" , new Stop(log, db));
-
+	    srv.createContext("/", new Login(log, db));
+	    
+	    
 	    srv.setExecutor(null);
 	    srv.start();
 	    log.info("server started");

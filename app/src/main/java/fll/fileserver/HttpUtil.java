@@ -95,6 +95,7 @@ public class HttpUtil
 	return buf.toString();
     }
 
+    
     public static String postNextParameter(InputStream body)
     throws IOException
     {
@@ -126,7 +127,8 @@ public class HttpUtil
 	}
 	return null;
     }
-
+    
+    
 
 
 
@@ -177,25 +179,80 @@ public class HttpUtil
 	}
     }
 
+    public static String multipartReadBoundary(InputStream body)
+    throws IOException
+    {
+	int nb;
+	StringBuffer buffer;
 
+	buffer = new StringBuffer(60);
+
+	for(int i=0;true;i++) {
+	    nb = body.read();
+	    if(nb == -1) {
+		return null;
+	    } else if((char)nb == '\r' || (char)nb == '\n') {
+		return buffer.toString();
+	    } else {
+		buffer.append(nb)
+	    }
+	    
+	}
+	
+
+
+    }
+
+    
     public static void textResponse(HttpExchange exchange,
     int status,
     String message)
+    /**
+    respond to http request in plain text with specified status and message
+
+    @param HttpExchange exchange : request to respond to
+    @param int status : response status
+    @param String message : response message
+    **/
     {
 	try {
 	    Headers responseHeaders = exchange.getResponseHeaders();
 	    OutputStream outStream = exchange.getResponseBody();
 
 	    responseHeaders.set("content-type", "text/plain");
-	    exchange.sendResponseHeaders(200, message.length());
+	    exchange.sendResponseHeaders(status, message.length());
 	    outStream.write(message.getBytes());
 
 	    outStream.close();
 	    exchange.close();
 	} catch(IOException e) {
-	    System.exit(1);
+
 	}
     }
+
+    public static void redirect(HttpExchange exchange,
+    String url)
+    /**
+    respond to Http request with redirect (300) to specified URL
+
+    @param HttpExchange exchange : exchange of request to respond to
+    @param String url : location header of response
+    **/
+    {
+	try {
+	    Headers responseHeaders = exchange.getResponseHeaders();
+	    OutputStream responseBody = exchange.getResponseBody();
+
+	    responseHeaders.set("location", url);
+	    exchange.sendResponseHeaders(300, 0);
+	    
+	    responseBody.close();
+	    exchange.close();
+	} catch(IOException e) {
+	    
+	}
+    }
+    
     /**
     functions to return a generic response, add codes as they are needed
     **/
