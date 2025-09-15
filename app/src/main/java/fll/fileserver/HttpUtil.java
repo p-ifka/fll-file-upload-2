@@ -193,14 +193,60 @@ public class HttpUtil
 		return null;
 	    } else if((char)nb == '\r' || (char)nb == '\n') {
 		return buffer.toString();
+	    } else if(i >= 60){
+		return null;
 	    } else {
-		buffer.append(nb)
+		buffer.append((char)nb);
 	    }
 	    
 	}
+    }
+
+    public static HashMap<String, String>multipartReadHeaders(InputStream body)
+    {
+	int nb;
+	int bufferSize;
+	int i;
+	int leadNewlineChar;
+	int newlineCount;
+	StringBuffer buffer;
+	HashMap<String,String> parameters;
 	
+	leadNewlineChar = -1;
+	newlineCount = -1;
+
+	bufferSize = 255
+	buffer = new StringBuffer(bufferSize);
+	parameters = new HashMap<String, String>();
+
+	for(i=0;true;i++) {
+	    nb = body.read();
+	    if(nb == -1) {
+		return null;
+	    } else if((char)nb == ';') {
+		break;
+	    }
+	}
 
 
+	for(int i=0;true;i++) {
+	    if(nb == -1) {
+		return null;
+	    } else if(nb == '\r' || nb == '\n') {
+		/* beginning of content should be designated by \r\n\r\n but this
+		should be able to work if \n\n or \r\r is used for some reason*/
+		
+		if(newlineCount == -1) { leadNewlineChar = nb; }
+		newlineCount++;
+		if(newlineCount >= 4 || (newlineCount >= 2 && nb == leadNewlineChar)) {
+		    return parameters;
+		}
+		
+	    } else {
+		// TODO::
+	    }
+	}
+	
     }
 
     

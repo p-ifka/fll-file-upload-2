@@ -81,13 +81,13 @@ implements HttpHandler
 	InputStream reqBody;
 	int nb;
 	String boundary;
-	String[] parameterLine;
-	String[] parameter;
-	
-	String filename;
 	
 	try {
 	    reqBody = exchange.getRequestBody();
+
+	    boundary = HttpUtil.multipartReadBoundary(reqBody);
+
+	    log.info(boundary);
 	    
 	    // while(true) {
 		// nb = reqBody.read();
