@@ -64,7 +64,7 @@ implements HttpHandler
 	fileDisplayTempArgs = new HashMap<String,String>();
 	for(int i=0;i<fileList.length;i++) {
 	    fileDisplayTempArgs.put("file-name", fileList[i].getName());
-	    fileDisplayTempArgs.put("file-download-link", String.format("download/%s", userID, fileList[i].getName()));
+	    fileDisplayTempArgs.put("file-download-link", String.format("/files/download/%s", fileList[i].getName()));
 	    fileListDisplay = fileListDisplay + HtmlFormatter.format(fileDisplayTemp, fileDisplayTempArgs);
 	}
 	
@@ -124,6 +124,7 @@ implements HttpHandler
 	int nb, i;
 	Headers responseHeaders;
 	OutputStream responseBody;
+	File file;
 	FileReader freader;
 	
 
@@ -132,7 +133,8 @@ implements HttpHandler
 	}
 	
 	try {
-	    freader = fileMgr.openFileRead(userID, URI[3]);
+	    file = fileMgr.openFile(userID, URI[3]);
+	    freader = new FileReader(file);
 	} catch(FileNotFoundException e) {
 	    HttpUtil.notFound(exchange);
 	    return;
@@ -141,20 +143,24 @@ implements HttpHandler
 	try {
 	    responseHeaders = exchange.getResponseHeaders();
 	    responseBody = exchange.getResponseBody();
-
-
+	    
+	    responseHeaders.set("content-type", "aplication/octet-stream");
+	    responseHeaders.set("content-disposition", "attachment");
+	    responseHeaders.set("filename", URI[3]);
+	    exchange.sendResponseHeaders(200, file.length());
+		    
+	    
 	    for(i=0;true;i++) {
 		nb = freader.read();
 		if(nb == -1) {
 		    break;
 		}
+		System.out.println(String.format("%c\t%d", (char)nb, nb));
 		responseBody.write((char)nb);
+		
+		// responseBody.write(String.format("%%%s", HttpUtil.toHex((char)nb, true)));
 	    }
-	    responseHeaders.set("content-type", "text/plain");
-	    responseHeaders.set("content-disposition", "attachment");
-	    responseHeaders.set("filename", URI[3]);
-	    exchange.sendResponseHeaders(200, i);
-
+	    
 	    freader.close();
 	    responseBody.close();
 	    exchange.close();
@@ -279,10 +285,18 @@ implements HttpHandler
 		log.info(URI);
 
 		if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
+		    log.info(URIComponents[2]);
 		    switch(URIComponents[2]) {
 		    case "upload":
 			handleUploadFile(exchange, auth);
 			break;
+		    default:
+			HttpUtil.notFound(exchange);
+			break;
+		    }
+		    return;
+		} else if(exchange.getRequestMethod().equals("GET") && URIComponents.length >= 3) {
+		    switch(URIComponents[2]) {
 		    case "download":
 			handleDownloadFile(exchange, auth, URIComponents);
 			break;
@@ -292,6 +306,7 @@ implements HttpHandler
 		    }
 		    return;
 		}
+		
 
 		showDirectory(exchange, auth, URIComponents);
 

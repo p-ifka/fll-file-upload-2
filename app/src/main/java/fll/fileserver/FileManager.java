@@ -84,15 +84,22 @@ public class FileManager
 	return new FileWriter(newFile);
     }
 
+    
+    public File openFile(String userID,
+    String path)
+    throws FileNotFoundException
+    {
+	File file;
+	file = new File(String.format("%s/%s/%s", filesRoot, userID, path));
+	return file;
+    }
+
+    
     public FileReader openFileRead(String userID,
     String path)
     throws FileNotFoundException
     {
-
-	    
-
 	    File readFile;
-
 	    readFile = new File(String.format("%s/%s/%s", filesRoot, userID, path));
 	    return new FileReader(readFile);
     }
