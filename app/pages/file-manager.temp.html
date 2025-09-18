@@ -1,14 +1,19 @@
 <!DOCTYPE html>
+<style>~css~</style>
 
 <html>
     <head><title>files</title></head>
 
     <body>
-	<span><form action="files/upload" method="POST" enctype="multipart/form-data">
+	<span><form action="/upload" method="POST" enctype="multipart/form-data">
 	    <input name="~file-form-input~" type="file"/>
-	    <input type="submit"/>
+	    <input type="submit" value="upload" />
 	</form></span>
+	<div class="li-container-list">
+	    ~file-list~
+	</div>
 
-	~file-list~
+	
+	
     </body>
 </html>

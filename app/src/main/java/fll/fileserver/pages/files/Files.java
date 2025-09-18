@@ -16,6 +16,8 @@ import com.sun.net.httpserver.Headers;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileReader;
+import java.io.FileNotFoundException;
 import java.io.OutputStream;
 import java.io.InputStream;
 import java.util.Scanner;
@@ -50,13 +52,30 @@ implements HttpHandler
 	Headers responseHeaders;
 	OutputStream responseBody;
 	HashMap<String, String> pageArgs;
-	String page;
 
+	String fileDisplayTemp;
+	HashMap<String,String> fileDisplayTempArgs;
+	String fileListDisplay = "";
+	String page;
+	
 
 	fileList = fileMgr.listFiles(userID, "");
+	fileDisplayTemp = HtmlFormatter.readWholePageFile("elements/file.temp.html");
+	fileDisplayTempArgs = new HashMap<String,String>();
+	for(int i=0;i<fileList.length;i++) {
+	    fileDisplayTempArgs.put("file-name", fileList[i].getName());
+	    fileDisplayTempArgs.put("file-download-link", String.format("download/%s", userID, fileList[i].getName()));
+	    fileListDisplay = fileListDisplay + HtmlFormatter.format(fileDisplayTemp, fileDisplayTempArgs);
+	}
+	
 
 	pageArgs = new HashMap<String, String>();
+	pageArgs.put("css", HtmlFormatter.readWholePageFile("pages/theme.css"));
 	pageArgs.put("file-form-input", FILE_FORM_INPUT);
+	pageArgs.put("file-list", fileListDisplay);
+
+
+	
 
 	try {
 	    responseHeaders = exchange.getResponseHeaders();
@@ -97,6 +116,53 @@ implements HttpHandler
 	}
 
 	return true;
+    }
+    private void handleDownloadFile(HttpExchange exchange,
+    String userID,
+    String[] URI)
+    {
+	int nb, i;
+	Headers responseHeaders;
+	OutputStream responseBody;
+	FileReader freader;
+	
+
+	if(URI.length < 4) {
+	    HttpUtil.badRequest(exchange);
+	}
+	
+	try {
+	    freader = fileMgr.openFileRead(userID, URI[3]);
+	} catch(FileNotFoundException e) {
+	    HttpUtil.notFound(exchange);
+	    return;
+	}
+	
+	try {
+	    responseHeaders = exchange.getResponseHeaders();
+	    responseBody = exchange.getResponseBody();
+
+
+	    for(i=0;true;i++) {
+		nb = freader.read();
+		if(nb == -1) {
+		    break;
+		}
+		responseBody.write((char)nb);
+	    }
+	    responseHeaders.set("content-type", "text/plain");
+	    responseHeaders.set("content-disposition", "attachment");
+	    responseHeaders.set("filename", URI[3]);
+	    exchange.sendResponseHeaders(200, i);
+
+	    freader.close();
+	    responseBody.close();
+	    exchange.close();
+	} catch(IOException e) {
+	    log.error(String.format("|pages.files.Files.handleDownloadFile| IOException : %s", e.getMessage()));
+	}
+
+	
     }
     
     private void handleUploadFile(HttpExchange exchange,
@@ -147,7 +213,7 @@ implements HttpHandler
 		return;
 		}
 
-		targetFile = fileMgr.openNewFileWrite(userID, "a.txt");
+		targetFile = fileMgr.openNewFileWrite(userID, filename);
 
 		log.info("opened file");
 		HttpUtil.multipartReadIntoFile(reqBody, targetFile, boundary);
@@ -213,10 +279,17 @@ implements HttpHandler
 		log.info(URI);
 
 		if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
-		    if(URIComponents[2].equals("upload")) {
+		    switch(URIComponents[2]) {
+		    case "upload":
 			handleUploadFile(exchange, auth);
+			break;
+		    case "download":
+			handleDownloadFile(exchange, auth, URIComponents);
+			break;
+		    default:
+			HttpUtil.notFound(exchange);
+			break;
 		    }
-
 		    return;
 		}
 

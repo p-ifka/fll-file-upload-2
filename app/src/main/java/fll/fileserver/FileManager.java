@@ -4,7 +4,10 @@ import fll.fileserver.Log;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.FilenameFilter;
+import java.io.FileNotFoundException;
+
 import java.io.IOException;
 
 import java.lang.SecurityException;
@@ -29,16 +32,16 @@ public class FileManager
 	    }
 	}
     }
-    
+
     private Log log;
     private String filesRoot;
-    
+
     public FileManager(Log logInstance, String rootDir)
     {
 	log = logInstance;
 	filesRoot = rootDir;
     }
-    
+
     public int createUserDir(String userID)
     {
 	File gDir;
@@ -59,7 +62,7 @@ public class FileManager
     }
 
     public boolean fileExists(String userID,
-			      String path)
+    String path)
     {
 	File file;
 
@@ -68,12 +71,12 @@ public class FileManager
     }
 
     public FileWriter openNewFileWrite(String userID,
-				       String path)
-	throws IOException
+    String path)
+    throws IOException
     {
 	File newFile;
 
-	
+
 	newFile = new File(String.format("%s/%s/%s", filesRoot, userID, path));
 	log.info(String.format("creating file %s/%S/%s", filesRoot, userID, path));
 	newFile.createNewFile();
@@ -81,7 +84,20 @@ public class FileManager
 	return new FileWriter(newFile);
     }
 
-    
+    public FileReader openFileRead(String userID,
+    String path)
+    throws FileNotFoundException
+    {
+
+	    
+
+	    File readFile;
+
+	    readFile = new File(String.format("%s/%s/%s", filesRoot, userID, path));
+	    return new FileReader(readFile);
+    }
+
+
 
     public File[] listFiles(String userID, String relativePath)
     {
@@ -92,8 +108,8 @@ public class FileManager
 	    return null;
 	}
     }
-    
 
-    
-    
+
+
+
 }
