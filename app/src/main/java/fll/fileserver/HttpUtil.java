@@ -37,6 +37,7 @@ public class HttpUtil
 	    if(trimLeadingZeros && !nonZero && digitVal == 0) {
 		continue;
 	    }
+	    nonZero = true;
 	    buf.append(HEX_CHAR_MAP[digitVal]);
 	}
 
@@ -175,29 +176,19 @@ public class HttpUtil
 		if(i <= 0) {
 		    return null;
 		} else {
-		    return parameterValue.toString();
+		    break;
 		}
 	    } else if((char)nextb == '&') {
-		return parameterValue.toString();
+		break;
 	    } else {
-		if((char)nextb == '%') {
-		    /* parse escaped characters */
-		    hexA = body.read();
-		    if(hexA == -1) { return null; }
-		    hexB = body.read();
-		    if(hexB == -1) { return null; }
-		    hexstr = String.format("%c%c", (char)hexA, (char)hexB);
-		    nextb = parseHex(hexstr);
-		    if(nextb == -1) { return null; }
-		}
 		if(i >= bufferSize) {
 		    return null;
-		    // bufferSize = bufferSize + 255;
-		    // parameterValue.setLength(bufferSize);
 		}
 		parameterValue.append((char)nextb);
 	    }
 	}
+	return unescapeInput(parameterValue.toString());
+	
     }
 
     public static String multipartReadBoundary(InputStream body)
