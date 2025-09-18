@@ -33,14 +33,14 @@ implements HttpHandler
     private FileManager fileMgr;
 
     private final String FILE_FORM_INPUT = "file";
-    
-    
+
+
     public Files(Log log, FileManager fileMgr)
     {
 	this.log = log;
 	this.fileMgr = fileMgr;
     }
-    
+
     private void showDirectory(HttpExchange exchange,
     String userID,
     String[] URIComponents)
@@ -61,7 +61,7 @@ implements HttpHandler
 	try {
 	    responseHeaders = exchange.getResponseHeaders();
 	    responseBody = exchange.getResponseBody();
-	    
+
 	    page = HtmlFormatter.format(HtmlFormatter.readWholePageFile("pages/file-manager.temp.html"), pageArgs);
 
 	    responseHeaders.set("content-type", "text/html");
@@ -73,112 +73,162 @@ implements HttpHandler
 	} catch(IOException e) {
 	    log.error(String.format("|pages.files.Files.handleUploadFile| IOException : %s", e.getMessage()));
 	}
-	
+
 	return;
     }
 
-    private void handleUploadFile(HttpExchange exchange,
-				  String userID)
+    private boolean isLegalFilePath(String filename)
+    /**
+    currently just make sure there is no ../ in filename
+
+    @param String filename : filename parameter of request
+
+    @return true if filename can be accepted, false if not
+    **/
     {
+	String[] path;
+
+	path = filename.split("/");
+
+	for(int i=0;i<path.length;i++) {
+	    if(path[i].equals("..")) {
+		return false;
+	    }
+	}
+
+	return true;
+    }
+    
+    private void handleUploadFile(HttpExchange exchange,
+    String userID)
+    {
+	log.info("uploading file");
+
 	InputStream reqBody;
-	int nb;
 	String boundary;
 	String headers;
+
+	int filenameStart;
+	int filenameEnd;
+	String filename;
 	FileWriter targetFile;
-	
+
+
 	try {
-	    
+
 	    reqBody = exchange.getRequestBody();
 
 	    boundary = HttpUtil.multipartReadBoundary(reqBody);
 	    headers = HttpUtil.multipartReadHeaders(reqBody);
 
-	    log.info(boundary);
-	    log.info(headers);
-	    
-	    if(fileMgr.fileExists(userID, "a.txt")) {
+	    filenameStart = headers.indexOf("filename=");
+	    if(filenameStart < 0) {
+		HttpUtil.badRequest(exchange);
+		return;
+	    }
+	    filenameStart += 10; // move forward past 'filename="'
+
+	    filenameEnd = headers.indexOf('\"', filenameStart);
+	    if(filenameEnd < 0) {
 		HttpUtil.badRequest(exchange);
 		return;
 	    }
 
-	    targetFile = fileMgr.openNewFileWrite(userID, "a.txt");
-
-	    HttpUtil.multipartReadIntoFile(reqBody, targetFile, boundary);
-	    targetFile.close();
-	    
-	    // while(true) {
-		// nb = reqBody.read();
-		// if(nb == -1) { break; }
-		// System.out.print((char)nb);
-	    // }
-	    // System.out.print("\n");
-	} catch(IOException e) {
-	    log.error(String.format("|pages.files.Files| IOException : %s", e.getMessage()));
-	    return;
-	}
-	
-	HttpUtil.OK(exchange);
-    }
-
-    private String parseAuthCookie(HttpExchange exchange)
-    {
-	String cookieStr;
-	String[] cookies;
-	String[] cookieI;
-	
-
-	cookieStr = exchange.getRequestHeaders().getFirst("Cookie");
-	if(cookieStr == null) {
-	    return null;
-	}
-	cookies = cookieStr.split(";");
-
-	for(int i=0;i<cookies.length;i++) {
-	    cookieI = cookies[i].split("=");
-	    if(cookieI.length < 2) { continue; }
-	    if(cookieI[0].equals("auth")) {
-		return cookieI[1];
+	    filename = headers.substring(filenameStart, filenameEnd);
+	    if(!isLegalFilePath(filename)) {
+		HttpUtil.badRequest(exchange);
+		return;
 	    }
-	}
+	    // log.info(boundary);
+	    // log.info(headers);
 
-	return null;
-	
-    }
-    
-    @Override
-    public void handle(HttpExchange exchange)
-    {
-	String URI;
-	String[] URIComponents;
-	String auth;
+	    if(fileMgr.fileExists(userID, filename)) {
+		HttpUtil.badRequest(exchange);
+		return;
+		}
 
-	auth = parseAuthCookie(exchange);
-	if(auth == null) {
-	    HttpUtil.redirect(exchange, "/");
-	    return;
-	}
-	auth = HttpUtil.escapeInput(auth);
-	
-	URI = exchange.getRequestURI().getPath();
-	URIComponents =  URI.split("/");
+		targetFile = fileMgr.openNewFileWrite(userID, "a.txt");
 
-	if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
-	    if(URIComponents[2].equals("upload")) {
-		handleUploadFile(exchange, auth);
+		log.info("opened file");
+		HttpUtil.multipartReadIntoFile(reqBody, targetFile, boundary);
+		targetFile.close();
+
+		HttpUtil.redirectSeeOther(exchange, "/files");
+
+		// while(true) {
+		    // nb = reqBody.read();
+		    // if(nb == -1) { break; }
+		    // System.out.print((char)nb);
+		    // }
+		    // System.out.print("\n");
+		} catch(IOException e) {
+		    log.error(String.format("|pages.files.Files| IOException : %s", e.getMessage()));
+		    return;
+		}
+
+
 	    }
-	    
-	    return;
-	}
-	
-	showDirectory(exchange, auth, URIComponents);
 
-	return;
-	
+	    private String parseAuthCookie(HttpExchange exchange)
+	    {
+		String cookieStr;
+		String[] cookies;
+		String[] cookieI;
 
-	// if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
-	    
-	// }
-    }
 
-    
-}
+		cookieStr = exchange.getRequestHeaders().getFirst("Cookie");
+		if(cookieStr == null) {
+		    return null;
+		}
+		cookies = cookieStr.split(";");
+
+		for(int i=0;i<cookies.length;i++) {
+		    cookieI = cookies[i].split("=");
+		    if(cookieI.length < 2) { continue; }
+		    if(cookieI[0].equals("auth")) {
+			return cookieI[1];
+		    }
+		}
+
+		return null;
+
+	    }
+
+	    @Override
+	    public void handle(HttpExchange exchange)
+	    {
+		String URI;
+		String[] URIComponents;
+		String auth;
+
+		auth = parseAuthCookie(exchange);
+		if(auth == null) {
+		    HttpUtil.redirect(exchange, "/");
+		    return;
+		}
+		auth = HttpUtil.unescapeInput(auth);
+
+		URI = exchange.getRequestURI().getPath();
+		URIComponents =  URI.split("/");
+		log.info(URI);
+
+		if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
+		    if(URIComponents[2].equals("upload")) {
+			handleUploadFile(exchange, auth);
+		    }
+
+		    return;
+		}
+
+		showDirectory(exchange, auth, URIComponents);
+
+		return;
+
+
+		// if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
+
+		    // }
+		}
+
+
+	    }
