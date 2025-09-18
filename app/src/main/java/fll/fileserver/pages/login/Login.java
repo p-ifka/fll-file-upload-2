@@ -39,6 +39,7 @@ implements HttpHandler
     String authPass)
     throws IOException
     {
+	log.info(String.format("setting auth: %s", authPass));
 	Headers responseHeaders;
 
 	responseHeaders = exchange.getResponseHeaders();
@@ -72,7 +73,7 @@ implements HttpHandler
 		    return;
 		case Database.DB_SUCCESS:
 		    setAuthCookie(exchange, pass);
-		    showLoginPage(exchange, false, null);
+		    HttpUtil.redirectSeeOther(exchange, "/files");
 		    return;
 		default:
 		    showLoginPage(exchange, true, "couldn't authenticate : something is very wrong");
