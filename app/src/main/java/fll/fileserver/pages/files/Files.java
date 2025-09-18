@@ -155,6 +155,7 @@ implements HttpHandler
 	auth = parseAuthCookie(exchange);
 	if(auth == null) {
 	    HttpUtil.redirect(exchange, "/");
+	    return;
 	}
 	auth = HttpUtil.escapeInput(auth);
 	

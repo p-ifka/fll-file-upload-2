@@ -331,7 +331,7 @@ public class HttpUtil
     public static void redirect(HttpExchange exchange,
     String url)
     /**
-    respond to Http request with redirect (300) to specified URL
+    respond to Http request with redirect (307) to specified URL
 
     @param HttpExchange exchange : exchange of request to respond to
     @param String url : location header of response
@@ -342,7 +342,7 @@ public class HttpUtil
 	    OutputStream responseBody = exchange.getResponseBody();
 
 	    responseHeaders.set("location", url);
-	    exchange.sendResponseHeaders(300, 0);
+	    exchange.sendResponseHeaders(307, 0);
 	    
 	    responseBody.close();
 	    exchange.close();
