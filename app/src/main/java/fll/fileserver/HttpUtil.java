@@ -11,7 +11,7 @@ public class HttpUtil
 {
     private static final char[] HEX_CHAR_MAP = { '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F' };
 
-    
+
     public static String toHex(char value, boolean trimLeadingZeros)
     /**
     convert char to hex representation
@@ -46,7 +46,7 @@ public class HttpUtil
     public static int parseHex(String hexstr)
     /**
     parse value from hexadecimal string
-    
+
     @param String hexstr : string containing only valid hexadecimal digits (case insensitive) [a-z], [A-Z], [0-9]
 
     @return String value or -1 if hex string contains invalid characters
@@ -96,7 +96,7 @@ public class HttpUtil
 	return buf.toString();
     }
 
-    public static String escapeInput(String input)
+    public static String unescapeInput(String input)
     {
 	StringBuffer buffer;
 	char ch;
@@ -105,17 +105,18 @@ public class HttpUtil
 	for(int i=0;i<input.length();i++) {
 	    ch = input.charAt(i);
 	    if(ch == '%') {
-		buffer.append((char)parseHex(input.substring(i + 1, i + 2)));
+		buffer.append((char)parseHex(String.format("%c%c", input.charAt(i + 1), input.charAt(i + 2))));
+		i += 2;
 	    } else {
-		buffer.append(ch);
+		buffer.append((char)ch);
 	    }
 	}
 	return buffer.toString();
-	
-	
+
+
     }
 
-    
+
     public static String postNextParameter(InputStream body)
     throws IOException
     {
@@ -147,8 +148,8 @@ public class HttpUtil
 	}
 	return null;
     }
-    
-    
+
+
 
 
 
@@ -218,21 +219,20 @@ public class HttpUtil
 	    } else {
 		buffer.append((char)nb);
 	    }
-	    
+
 	}
     }
 
     public static String multipartReadHeaders(InputStream body)
-	throws IOException
+    throws IOException
     {
 	int nb;
 	int bufferSize;
 	int leadNewlineChar;
 	int newlineCount;
 	StringBuffer buffer;
-	
-	leadNewlineChar = -1;
-	newlineCount = -1;
+
+	newlineCount = 0;
 
 	bufferSize = 1024;
 	buffer = new StringBuffer(bufferSize);
@@ -242,16 +242,14 @@ public class HttpUtil
 	    if(nb == -1) {
 		return null;
 	    } else if(nb == '\r' || nb == '\n') {
-		/* beginning of content should be designated by \r\n\r\n but this
-		should be able to work if \n\n or \r\r is used for some reason*/
-		
-		if(newlineCount == -1) { leadNewlineChar = nb; }
 		newlineCount++;
-		if(newlineCount >= 4 || (newlineCount >= 2 && nb == leadNewlineChar)) {
+
+		if(newlineCount >= 4) {
 		    return buffer.toString();
 		}
-		
+
 	    } else {
+		newlineCount = 0;
 		if(i >= bufferSize) {
 		    bufferSize += 1024;
 		    buffer.setLength(bufferSize);
@@ -259,13 +257,13 @@ public class HttpUtil
 		buffer.append((char)nb);
 	    }
 	}
-	
+
     }
 
     public static void multipartReadIntoFile(InputStream body,
-					     FileWriter targetFile,
-					     String stopLine)
-	throws IOException
+    FileWriter targetFile,
+    String stopLine)
+    throws IOException
     {
 	int bufferLength;
 	int nb;
@@ -284,24 +282,30 @@ public class HttpUtil
 		    bufferLength += 1024;
 		    line.setLength(bufferLength);
 		}
-		
-		line.append((char)nb);
+		// targetFile.write((char)nb);
+
+
 		if((char)nb == '\n') {
 		    lineStr = line.toString();
-		    if(lineStr.substring(0, stopLine.length()).equals(stopLine)) {
+
+		    if(lineStr.length() >= stopLine.length() &&
+		    lineStr.substring(0, stopLine.length()).equals(stopLine))
+		    {
 			return;
 		    } else {
+			line.append((char)nb);
 			targetFile.write(lineStr);
-			line.delete(0, lineStr.length()-1);
+			line.delete(0, line.length());
 		    }
+		} else {
+		    line.append((char)nb);
 		}
-		
 	    }
 	}
-	    
+
     }
 
-    
+
     public static void textResponse(HttpExchange exchange,
     int status,
     String message)
@@ -331,7 +335,7 @@ public class HttpUtil
     public static void redirect(HttpExchange exchange,
     String url)
     /**
-    respond to Http request with redirect (307) to specified URL
+    respond to Http request with redirect (302) to specified URL
 
     @param HttpExchange exchange : exchange of request to respond to
     @param String url : location header of response
@@ -342,15 +346,39 @@ public class HttpUtil
 	    OutputStream responseBody = exchange.getResponseBody();
 
 	    responseHeaders.set("location", url);
-	    exchange.sendResponseHeaders(307, 0);
-	    
+	    exchange.sendResponseHeaders(302, 0);
+
 	    responseBody.close();
 	    exchange.close();
 	} catch(IOException e) {
-	    
+
 	}
     }
+
     
+    public static void redirectSeeOther(HttpExchange exchange,
+    String url)
+    /**
+    respond to Http request with redirect (303: see other) to specified URL
+
+    @param HttpExchange exchange : exchange of request to respond to
+    @param String url : location header of response
+    **/
+    {
+	try {
+	    Headers responseHeaders = exchange.getResponseHeaders();
+	    OutputStream responseBody = exchange.getResponseBody();
+
+	    responseHeaders.set("location", url);
+	    exchange.sendResponseHeaders(303, 0);
+
+	    responseBody.close();
+	    exchange.close();
+	} catch(IOException e) {
+
+	}
+    }
+
     /**
     functions to return a generic response, add codes as they are needed
     **/
