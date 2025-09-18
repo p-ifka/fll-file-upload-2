@@ -15,6 +15,7 @@ import com.sun.net.httpserver.Headers;
 
 import java.io.IOException;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.OutputStream;
 import java.io.InputStream;
 import java.util.Scanner;
@@ -76,18 +77,34 @@ implements HttpHandler
 	return;
     }
 
-    private void handleUploadFile(HttpExchange exchange)
+    private void handleUploadFile(HttpExchange exchange,
+				  String userID)
     {
 	InputStream reqBody;
 	int nb;
 	String boundary;
+	String headers;
+	FileWriter targetFile;
 	
 	try {
+	    
 	    reqBody = exchange.getRequestBody();
 
 	    boundary = HttpUtil.multipartReadBoundary(reqBody);
+	    headers = HttpUtil.multipartReadHeaders(reqBody);
 
 	    log.info(boundary);
+	    log.info(headers);
+	    
+	    if(fileMgr.fileExists(userID, "a.txt")) {
+		HttpUtil.badRequest(exchange);
+		return;
+	    }
+
+	    targetFile = fileMgr.openNewFileWrite(userID, "a.txt");
+
+	    HttpUtil.multipartReadIntoFile(reqBody, targetFile, boundary);
+	    targetFile.close();
 	    
 	    // while(true) {
 		// nb = reqBody.read();
@@ -105,11 +122,16 @@ implements HttpHandler
 
     private String parseAuthCookie(HttpExchange exchange)
     {
+	String cookieStr;
 	String[] cookies;
 	String[] cookieI;
 	
 
-	cookies = exchange.getRequestHeaders().getFirst("Cookie").split(";");
+	cookieStr = exchange.getRequestHeaders().getFirst("Cookie");
+	if(cookieStr == null) {
+	    return null;
+	}
+	cookies = cookieStr.split(";");
 
 	for(int i=0;i<cookies.length;i++) {
 	    cookieI = cookies[i].split("=");
@@ -134,13 +156,14 @@ implements HttpHandler
 	if(auth == null) {
 	    HttpUtil.redirect(exchange, "/");
 	}
+	auth = HttpUtil.escapeInput(auth);
 	
 	URI = exchange.getRequestURI().getPath();
 	URIComponents =  URI.split("/");
 
 	if(exchange.getRequestMethod().equals("POST") && URIComponents.length >= 3) {
 	    if(URIComponents[2].equals("upload")) {
-		handleUploadFile(exchange);
+		handleUploadFile(exchange, auth);
 	    }
 	    
 	    return;

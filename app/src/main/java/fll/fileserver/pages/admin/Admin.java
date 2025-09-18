@@ -127,7 +127,7 @@ implements HttpHandler
 	String groupName;
 	String quantityStr;
 	int quantity;
-	int sqlRc;
+	int rc;
 
 
 	try {
@@ -151,14 +151,16 @@ implements HttpHandler
 		return;
 	    }
 
-	    sqlRc = dbInst.createUsers(groupName, quantity);
-	    if(sqlRc == Database.DB_SUCCESS) {
+	    
+	    rc = dbInst.createUsers(groupName, quantity);
+	    if(rc == Database.DB_SUCCESS) {
 		HttpUtil.OK(exchange);
-	    } else if(sqlRc == Database.DB_ISSUE) {
+	    } else if(rc == Database.DB_ISSUE) {
 		HttpUtil.badRequest(exchange);
 	    } else {
 		HttpUtil.internalServerErr(exchange);
 	    }
+
 
 	} catch(IOException e) {
 	    logInst.error(String.format("|pages.admin.Admin.handleAddUsers| IOException : %s", e.getMessage()));

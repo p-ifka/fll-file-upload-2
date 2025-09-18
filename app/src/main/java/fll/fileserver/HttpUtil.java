@@ -1,6 +1,7 @@
 package fll.fileserver;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 
 import com.sun.net.httpserver.Headers;
@@ -93,6 +94,25 @@ public class HttpUtil
 	    buf.append(toHex(ch, true));
 	}
 	return buf.toString();
+    }
+
+    public static String escapeInput(String input)
+    {
+	StringBuffer buffer;
+	char ch;
+
+	buffer = new StringBuffer(input.length());
+	for(int i=0;i<input.length();i++) {
+	    ch = input.charAt(i);
+	    if(ch == '%') {
+		buffer.append((char)parseHex(input.substring(i + 1, i + 2)));
+	    } else {
+		buffer.append(ch);
+	    }
+	}
+	return buffer.toString();
+	
+	
     }
 
     
@@ -202,34 +222,23 @@ public class HttpUtil
 	}
     }
 
-    public static HashMap<String, String>multipartReadHeaders(InputStream body)
+    public static String multipartReadHeaders(InputStream body)
+	throws IOException
     {
 	int nb;
 	int bufferSize;
-	int i;
 	int leadNewlineChar;
 	int newlineCount;
 	StringBuffer buffer;
-	HashMap<String,String> parameters;
 	
 	leadNewlineChar = -1;
 	newlineCount = -1;
 
-	bufferSize = 255
+	bufferSize = 1024;
 	buffer = new StringBuffer(bufferSize);
-	parameters = new HashMap<String, String>();
-
-	for(i=0;true;i++) {
-	    nb = body.read();
-	    if(nb == -1) {
-		return null;
-	    } else if((char)nb == ';') {
-		break;
-	    }
-	}
-
 
 	for(int i=0;true;i++) {
+	    nb = body.read();
 	    if(nb == -1) {
 		return null;
 	    } else if(nb == '\r' || nb == '\n') {
@@ -239,14 +248,57 @@ public class HttpUtil
 		if(newlineCount == -1) { leadNewlineChar = nb; }
 		newlineCount++;
 		if(newlineCount >= 4 || (newlineCount >= 2 && nb == leadNewlineChar)) {
-		    return parameters;
+		    return buffer.toString();
 		}
 		
 	    } else {
-		// TODO::
+		if(i >= bufferSize) {
+		    bufferSize += 1024;
+		    buffer.setLength(bufferSize);
+		}
+		buffer.append((char)nb);
 	    }
 	}
 	
+    }
+
+    public static void multipartReadIntoFile(InputStream body,
+					     FileWriter targetFile,
+					     String stopLine)
+	throws IOException
+    {
+	int bufferLength;
+	int nb;
+	StringBuffer line;
+	String lineStr;
+
+	bufferLength = 1024;
+	line = new StringBuffer(bufferLength);
+
+	for(int i=0;true;i++) {
+	    nb = body.read();
+	    if(nb == -1) {
+		return;
+	    } else {
+		if(i >= bufferLength) {
+		    bufferLength += 1024;
+		    line.setLength(bufferLength);
+		}
+		
+		line.append((char)nb);
+		if((char)nb == '\n') {
+		    lineStr = line.toString();
+		    if(lineStr.substring(0, stopLine.length()).equals(stopLine)) {
+			return;
+		    } else {
+			targetFile.write(lineStr);
+			line.delete(0, lineStr.length()-1);
+		    }
+		}
+		
+	    }
+	}
+	    
     }
 
     

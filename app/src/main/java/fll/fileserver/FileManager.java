@@ -3,6 +3,7 @@ package fll.fileserver;
 import fll.fileserver.Log;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 
@@ -43,7 +44,7 @@ public class FileManager
 	File gDir;
 
 	gDir = new File(String.format("%s/%s/", filesRoot, userID));
-	
+	log.info(String.format("creating directory  %s/%s/", filesRoot, userID));
 	if(gDir.exists()) {
 	    return FS_SUCCESS;
 	} else {
@@ -56,6 +57,31 @@ public class FileManager
 	    }
 	}
     }
+
+    public boolean fileExists(String userID,
+			      String path)
+    {
+	File file;
+
+	file = new File(String.format("%s/%s/%s", filesRoot, userID, path));
+	return file.exists();
+    }
+
+    public FileWriter openNewFileWrite(String userID,
+				       String path)
+	throws IOException
+    {
+	File newFile;
+
+	
+	newFile = new File(String.format("%s/%s/%s", filesRoot, userID, path));
+	log.info(String.format("creating file %s/%S/%s", filesRoot, userID, path));
+	newFile.createNewFile();
+	newFile.setWritable(true, true);
+	return new FileWriter(newFile);
+    }
+
+    
 
     public File[] listFiles(String userID, String relativePath)
     {
