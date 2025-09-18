@@ -284,8 +284,8 @@ public class HttpUtil
 		    {
 			return;
 		    } else {
-			line.append((char)nb);
 			targetFile.write(lineStr);
+			targetFile.write((char)nb);
 			line.delete(0, line.length());
 		    }
 		} else {
