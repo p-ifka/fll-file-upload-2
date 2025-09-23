@@ -1,9 +1,24 @@
-<span>
-    <p><a href="~group-link~">~group-name~</a> - ~group-user-quantity~ users - expires: ~group-expiry~</p>
-    <form action="/admin/add-users" method="POST">			<!--add users-->
-	<input type="hidden" name="~group-name-form-input~" value="~group-name~"/>
-	<input type="number" name="~quantity-form-input~" value="0" />
-	<input type="submit" value="+user(s)">
-    </form>
-</span>
-<hr/>
+<div class="li-container">
+  <p><a href="~group-link~">~group-name~</a> - ~group-user-quantity~ users - expires: ~group-expiry~</p>
+  <details>
+      <summary>add user(s)</summary>
+      <h4>add (n) new users:</h4>
+      <form action="/admin/add-users" method="POST">			<!--add users-->
+	  <input type="hidden" name="~group-name-form-input~" value="~group-name~"/>
+	  <input type="number" name="~quantity-form-input~" value="" placeholder="# of users">
+	  <input type="submit" value="+user(s)">
+      </form>
+      <hr/>
+      <h4>add new user with label:</h4>
+      <form action="/admin/add-users" method="POST">			<!--add users-->
+	  <input type="hidden" name="~group-name-form-input~" value="~group-name~"/>
+	  <input type="text" name="~user-label-form-input~" value="" placeholder="user label" />
+	  <input type="submit" value="+user">
+      </form>
+
+
+      
+      
+  </details>
+</div>
+

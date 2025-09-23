@@ -1,6 +1,18 @@
-<span>
+<div class="li-container">
     <p>~user-pass~ | ~user-label~</p>
-    <form>
-	<input type="text" />
-    </form>
-</span>
+    <details>
+	<summary>set label</summary>
+	<form action="/admin/set-label" method="POST">
+	    <input type="hidden" name="~user-pass-form-input~" value="~user-pass~"/>
+	    <input type="text" name="~user-label-form-input~" value="" placeholder="new label" />
+	    <input type="submit" value="set" />
+	</form>
+    </details>
+</div>
+
+<!-- <span>
+     <p>~user-pass~ | ~user-label~</p>
+     <form>
+     <input type="text" />
+     </form>
+     </span> -->

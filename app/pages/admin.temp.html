@@ -1,18 +1,24 @@
 <!DOCTYPE html>
+<style>~css~</style>
 
 <html>
     <head><title>page</title></head>
     <body>
-	<h2>add group</h2>
-	<form action="/admin/add-group" method="POST">
-	    <span><p>name: </p><input type="text" name="~group-name-form-input~" pattern="[a-z]|[A-Z]|\-|\_{1,}" /></span>
-	    <span><p>expiration date (optional): </p><input type="date" name="~group-expiry-input~"/></span>
-	    <input type="submit" value="+"/>
-	</form>
+	<details style="box-shadow: 0px 2px 0px #000000;">
+	    <summary>
+		Create Group
+	    </summary>
+	    <form action="/admin/add-group" method="POST">
+		<p>name: <input type="text" name="~group-name-form-input~" /></p>
+		<p>expiration date (optional):<input type="date" name="~group-expiry-input~"/></p>
+		<input type="submit" value="submit"/>
+	    </form>
 
-	
-	<h2>groups</h2>
-	~table-contents~
+	</details>
+
+	<div class="li-container-list">
+	    ~table-contents~
+	</div>
 
     </body>
 
