@@ -110,7 +110,7 @@ public class Database
 
 	stmt = db.createStatement();
 	stmt.execute(String.format("create table %s"
-	+ "(PASS text primary key, GROUPID text, foreign key(GROUPID) references %s(ID), LABEL text)", USER_LIST_TABLE, GROUP_LIST_TABLE));
+	+ "(PASS text primary key, GROUPID text, LABEL text, foreign key(GROUPID) references %s(ID))", USER_LIST_TABLE, GROUP_LIST_TABLE));
 
 	stmt.close();
 	return;
@@ -156,18 +156,18 @@ public class Database
 	return input.replace("\"", "\"\"").replace("\'", "\'\'");
     }
 
-    private boolean isValidGroupName(String groupID)
-    {
-	for(int i=0;i<groupID.length();i++) {
-	    char ch = groupID.charAt(i);
-	    if(!( (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-'))) {
-		return false;
-	    }
-	}
+    // private boolean isValidGroupName(String groupID)
+    // {
+	// for(int i=0;i<groupID.length();i++) {
+	    // char ch = groupID.charAt(i);
+	    // if(!( (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_') || (ch == '-'))) {
+		// return false;
+	    // }
+	// }
 
-	return true;
+	// return true;
 
-    }
+    // }
 
 
     public boolean doesGroupExist(String groupID)
@@ -194,7 +194,7 @@ public class Database
 	try {
 	    stmt = database.createStatement();
 	    result = stmt.executeQuery(String.format("select * from %s where pass = \"%s\"", USER_LIST_TABLE, escapeInput(pass)));
-	    
+
 	    if(result.next()) {
 		return DB_SUCCESS;
 	    } else {
@@ -206,8 +206,8 @@ public class Database
 	}
     }
 
-    
-    
+
+
     public SqlQuery getGroups()
     throws SQLException
     /**
@@ -302,10 +302,10 @@ public class Database
     @return DB_ERROR on error, DB_ISSUE if group already exists, DB_SUCCESS if group was successfully created
     **/
     {
-	if(!isValidGroupName(groupID)) {
-	    return DB_ISSUE;
-	}
-	
+	// if(!isValidGroupName(groupID)) {
+	    // return DB_ISSUE;
+	// }
+
 	log.info(String.format("attempting to create group %s", groupID));
 
 	Statement stmt;
@@ -377,7 +377,7 @@ public class Database
 		if(fileRC == FileManager.FS_ERROR) {
 		    return DB_ERROR;
 		}
-		
+
 	    }
 
 	    return DB_SUCCESS;
@@ -386,23 +386,63 @@ public class Database
 	    log.error("|Database.createUsers| SQLException: %s" + e.getMessage());
 	    return DB_ERROR;
 	}
-
-
-
     }
 
-    public int setUserLabel(String userPass,
-			    String newLabel)
+    public int createLabeledUser(String groupID,
+    String label)
     {
-	Statement stmt;
 
+	Statement stmt;
+	String pass;
+	ResultSet rs;
+	int fileRC;
 	try {
+	    /* make sure group exists */
 	    stmt = database.createStatement();
-	    stmt.execute(String.format("update %s set LABEL = \"%s\" where PASS = \"%s\"", USER_LIST_TABLE, escapeInput(newLabel), escapeInput(userPass)));
-	} catch(SQLException e) {
-	    
-	}
+	    rs = stmt.executeQuery( String.format("select * from %s where ID = \"%s\"", GROUP_LIST_TABLE, groupID));
+	    if(!rs.next()) {
+		log.warn(String.format("request to create user(s) failed: group %s does not exist" , groupID));
+		return DB_ISSUE;
+	    }
+
+	    while(true) {
+		pass = randomPassword();
+		rs = stmt.executeQuery(String.format("select * from %s where PASS = \"%s\"", USER_LIST_TABLE, pass));
+		if(!rs.next()) {
+		    break;
+		}
+	    }
+
+
+	    stmt.execute(String.format("insert into %s (PASS, GROUPID, LABEL)"
+	    + "values (\"%s\", \"%s\", \"%s\")", USER_LIST_TABLE, pass, groupID, escapeInput(label)));
+
+	    fileRC = fileMgr.createUserDir(pass);
+	    if(fileRC == FileManager.FS_ERROR) {
+		return DB_ERROR;
+	    }
+
+	return DB_SUCCESS;
+
+    } catch(SQLException e) {
+	log.error("|Database.createUsers| SQLException: %s" + e.getMessage());
+	return DB_ERROR;
     }
+}
+
+public int setUserLabel(String userPass,
+String newLabel)
+{
+    Statement stmt;
+
+    try {
+	stmt = database.createStatement();
+	stmt.execute(String.format("update %s set LABEL = \"%s\" where PASS = \"%s\"", USER_LIST_TABLE, escapeInput(newLabel), escapeInput(userPass)));
+	return DB_SUCCESS;
+    } catch(SQLException e) {
+	log.error(String.format("|Database.setUserLabel| SQLException : %s", e.getMessage()));
+	return DB_ERROR;
+    }
+}
 
 }
- 
