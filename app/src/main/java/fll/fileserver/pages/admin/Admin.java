@@ -211,6 +211,7 @@ implements HttpHandler
 	    
 	    pageArgs = new HashMap<String,String>();
 	    pageArgs.put("group-name", groupID);
+
 	    pageArgs.put("user-list", userTable.toString());
 	    page = HtmlFormatter.format(HtmlFormatter.readWholePageFile("pages/admin-group.temp.html"), pageArgs);
 
@@ -285,6 +286,7 @@ implements HttpHandler
 		HashMap<String, String> divArgs = new HashMap<String, String>();
 
 		divArgs.put("group-name", gtGroupName);
+		divArgs.put("group-link", String.format("/admin/group/%s", gtGroupName));
 		divArgs.put("group-expiry", groups.getString(2));
 		divArgs.put("group-name", gtGroupName);
 		divArgs.put("group-user-quantity", String.format("%d", dbInst.getUserCount(gtGroupName)));
