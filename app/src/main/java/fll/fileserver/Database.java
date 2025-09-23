@@ -110,7 +110,7 @@ public class Database
 
 	stmt = db.createStatement();
 	stmt.execute(String.format("create table %s"
-	+ "(PASS text primary key, GROUPID text, foreign key(GROUPID) references %s(ID))", USER_LIST_TABLE, GROUP_LIST_TABLE));
+	+ "(PASS text primary key, GROUPID text, foreign key(GROUPID) references %s(ID), LABEL text)", USER_LIST_TABLE, GROUP_LIST_TABLE));
 
 	stmt.close();
 	return;
@@ -168,6 +168,7 @@ public class Database
 	return true;
 
     }
+
 
     public boolean doesGroupExist(String groupID)
     throws SQLException
@@ -388,6 +389,19 @@ public class Database
 
 
 
+    }
+
+    public int setUserLabel(String userPass,
+			    String newLabel)
+    {
+	Statement stmt;
+
+	try {
+	    stmt = database.createStatement();
+	    stmt.execute(String.format("update %s set LABEL = \"%s\" where PASS = \"%s\"", USER_LIST_TABLE, escapeInput(newLabel), escapeInput(userPass)));
+	} catch(SQLException e) {
+	    
+	}
     }
 
 }
