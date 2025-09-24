@@ -16,6 +16,7 @@ import com.sun.net.httpserver.Headers;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
 import java.io.OutputStream;
@@ -23,6 +24,8 @@ import java.io.InputStream;
 import java.util.Scanner;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
+
+import java.nio.ByteBuffer;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -141,26 +144,31 @@ implements HttpHandler
 	}
 	
 	try {
+	    for(i=0;true;i++) {
+		if(freader.read() == -1) {
+		    break;
+		}
+	    }
+	    freader.close();
+	    freader = new FileReader(file);
+	    
+	    
 	    responseHeaders = exchange.getResponseHeaders();
 	    responseBody = exchange.getResponseBody();
 	    
 	    responseHeaders.set("content-type", "aplication/octet-stream");
 	    responseHeaders.set("content-disposition", "attachment");
 	    responseHeaders.set("filename", URI[3]);
-	    exchange.sendResponseHeaders(200, file.length());
-		    
+	    exchange.sendResponseHeaders(200, i);
 	    
-	    for(i=0;true;i++) {
+	    while(true) {
 		nb = freader.read();
 		if(nb == -1) {
 		    break;
 		}
-		System.out.println(String.format("%c\t%d", (char)nb, nb));
 		responseBody.write((char)nb);
-		
-		// responseBody.write(String.format("%%%s", HttpUtil.toHex((char)nb, true)));
 	    }
-	    
+
 	    freader.close();
 	    responseBody.close();
 	    exchange.close();
@@ -183,7 +191,7 @@ implements HttpHandler
 	int filenameStart;
 	int filenameEnd;
 	String filename;
-	FileWriter targetFile;
+	FileOutputStream targetFile;
 
 
 	try {
@@ -217,9 +225,9 @@ implements HttpHandler
 	    if(fileMgr.fileExists(userID, filename)) {
 		HttpUtil.badRequest(exchange);
 		return;
-		}
+	    }
 
-		targetFile = fileMgr.openNewFileWrite(userID, filename);
+		targetFile = fileMgr.openNewFileWriteStream(userID, filename);
 
 		log.info("opened file");
 		HttpUtil.multipartReadIntoFile(reqBody, targetFile, boundary);

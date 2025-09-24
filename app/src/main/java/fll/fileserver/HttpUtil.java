@@ -1,8 +1,13 @@
 package fll.fileserver;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+
+
+import java.nio.ByteBuffer;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -188,7 +193,7 @@ public class HttpUtil
 	    }
 	}
 	return unescapeInput(parameterValue.toString());
-	
+
     }
 
     public static String multipartReadBoundary(InputStream body)
@@ -230,6 +235,7 @@ public class HttpUtil
 
 	for(int i=0;true;i++) {
 	    nb = body.read();
+
 	    if(nb == -1) {
 		return null;
 	    } else if(nb == '\r' || nb == '\n') {
@@ -252,47 +258,58 @@ public class HttpUtil
     }
 
     public static void multipartReadIntoFile(InputStream body,
-    FileWriter targetFile,
+    FileOutputStream targetFile,
     String stopLine)
     throws IOException
     {
-	int bufferLength;
 	int nb;
-	StringBuffer line;
-	String lineStr;
+	ByteBuffer line;
+	byte[] lineArray;
+	int lineI;
+	boolean lineMatch;
 
-	bufferLength = 1024;
-	line = new StringBuffer(bufferLength);
-
+	line = ByteBuffer.allocate(stopLine.length());
+	lineMatch = true;
+	lineI = 0;
 	for(int i=0;true;i++) {
 	    nb = body.read();
+	    System.out.println(String.format("%d(%d) - %c: %b", i, lineI, (char)nb, lineMatch));
 	    if(nb == -1) {
+		System.out.println("EOF found");
 		return;
-	    } else {
-		if(i >= bufferLength) {
-		    bufferLength += 1024;
-		    line.setLength(bufferLength);
-		}
-		// targetFile.write((char)nb);
-
-
-		if((char)nb == '\n') {
-		    lineStr = line.toString();
-
-		    if(lineStr.length() >= stopLine.length() &&
-		    lineStr.substring(0, stopLine.length()).equals(stopLine))
-		    {
-			return;
-		    } else {
-			targetFile.write(lineStr);
-			targetFile.write((char)nb);
-			line.delete(0, line.length());
-		    }
-		} else {
-		    line.append((char)nb);
-		}
 	    }
+
+
+	    if(lineMatch == true) {
+		if(lineI >= stopLine.length()) {
+		    return;
+		} else {
+		    if((char)nb == stopLine.charAt(lineI)) {
+			line.put((byte)nb);
+		    } else {
+			lineMatch = false;
+			lineArray = line.array();
+			for(int j = 0;j<lineI;j++) {
+			    targetFile.write(lineArray[j]);
+			}
+			targetFile.write((byte)nb);
+		    }
+		}
+	    } else {
+		targetFile.write((byte)nb);
+	    }
+
+
+	    if((char)nb == '\n') {
+		lineI = 0;
+		lineMatch = true;
+		line.clear();
+		continue;
+	    }
+
+	    lineI++;
 	}
+
 
     }
 
@@ -346,7 +363,7 @@ public class HttpUtil
 	}
     }
 
-    
+
     public static void redirectSeeOther(HttpExchange exchange,
     String url)
     /**

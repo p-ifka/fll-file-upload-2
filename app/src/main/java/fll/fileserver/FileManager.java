@@ -4,6 +4,7 @@ import fll.fileserver.Log;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.FileNotFoundException;
@@ -70,7 +71,7 @@ public class FileManager
 	return file.exists();
     }
 
-    public FileWriter openNewFileWrite(String userID,
+    public FileOutputStream openNewFileWriteStream(String userID,
     String path)
     throws IOException
     {
@@ -81,9 +82,10 @@ public class FileManager
 	log.info(String.format("creating file %s/%S/%s", filesRoot, userID, path));
 	newFile.createNewFile();
 	newFile.setWritable(true, true);
-	return new FileWriter(newFile);
+	return new FileOutputStream(newFile);
     }
 
+    
     
     public File openFile(String userID,
     String path)
